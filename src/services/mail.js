@@ -21,7 +21,7 @@ function createTransport() {
   });
 }
 
-async function sendTruckSwitchEmail(submission, meta) {
+async function sendTruckSwitchEmail(submission, meta, options = {}) {
   const { mail } = loadConfig();
   if (!mail.departmentEmails.length) {
     console.warn('[mail] DEPARTMENT_EMAILS is empty; skipping email.');
@@ -37,8 +37,8 @@ async function sendTruckSwitchEmail(submission, meta) {
   await transport.sendMail({
     from: mail.from,
     to: mail.departmentEmails.join(','),
-    subject: formatEmailSubject(submission),
-    html: formatEmailHtml(submission, meta),
+    subject: formatEmailSubject(submission, options),
+    html: formatEmailHtml(submission, meta, options),
   });
 
   return { sent: true };
