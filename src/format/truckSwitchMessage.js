@@ -69,7 +69,7 @@ function formatWorkCompletedLine(workDone) {
   if (workDone) {
     return '*Work Completed:* :white_check_mark:';
   }
-  return '*Work Completed:*';
+  return '*Work Completed:* :x:';
 }
 
 function checksToUpdateFlags(checks) {
