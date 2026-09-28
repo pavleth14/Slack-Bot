@@ -5,11 +5,11 @@ function formatSafetyTeamMention(safetyTeamUsergroupId) {
   return '@safetyteam';
 }
 
-function formatEldTeamMention(eldTeamUsergroupId) {
-  if (eldTeamUsergroupId) {
-    return `<!subteam^${eldTeamUsergroupId}|eldteam>`;
+function formatMaintenanceTeamMention(maintenanceTeamUsergroupId) {
+  if (maintenanceTeamUsergroupId) {
+    return `<!subteam^${maintenanceTeamUsergroupId}|maintenance>`;
   }
-  return '@eldteam';
+  return '@maintenance';
 }
 
 function displayTrailer(value) {
@@ -24,96 +24,87 @@ function formatTemporaryLine(isTemporary) {
   return 'Switch is not temporary.';
 }
 
-function formatAssignmentBlock(meta, { pending, updateFlags }) {
-  if (pending) {
-    return `Fuel Card: ${formatSafetyTeamMention(meta.safetyTeamUsergroupId)}
-Samsara: ${formatEldTeamMention(meta.eldTeamUsergroupId)}
-TMS: ${formatSafetyTeamMention(meta.safetyTeamUsergroupId)}`;
-  }
-
-  const line = (label, updated) => {
-    if (updated) return `${label}: Updated.`;
-    return `${label}: NA`;
-  };
-
-  return `${line('Fuel Card', updateFlags?.fuel)}
-${updateFlags?.samsara ? 'Samsara: Updated.' : 'Samsara:'}
-${line('TMS', updateFlags?.tms)}`;
-}
-
-function formatCoreBody(submission, meta, { pending, updateFlags, includeProcessComplete } = {}) {
+function formatPostHeaderText(submission, meta) {
   const requiredUpdates = submission.requiredUpdates || 'Truck switch.';
   const locationBlock = submission.locationNote
-    ? `\nLocation Note: ${submission.locationNote}\n`
+    ? `\n*Location Note:* ${submission.locationNote}`
     : '';
 
-  let body = `*TRUCK SWITCH*
+  return `*TRUCK SWITCH*
 
-Driver name: ${submission.driver}
+*Driver name:* ${submission.driver}
 
 *Equipment Switch Details*
 
-Old Truck Number: ${submission.oldTruck}
-New Truck Number: ${submission.newTruck}
+*Old Truck Number:* ${submission.oldTruck}
+*New Truck Number:* ${submission.newTruck}
 ${formatTemporaryLine(submission.switchTemporary)}
 
-Old Trailer Number: ${displayTrailer(submission.oldTrailer)}
-New Trailer Number: ${displayTrailer(submission.newTrailer)}
+*Old Trailer Number:* ${displayTrailer(submission.oldTrailer)}
+*New Trailer Number:* ${displayTrailer(submission.newTrailer)}
 
-Required Updates: ${requiredUpdates}${locationBlock}
-${formatAssignmentBlock(meta, { pending, updateFlags })}
+*Required Updates:* ${requiredUpdates}${locationBlock}`;
+}
 
-Status
-
-Work Completed:`;
-
-  if (includeProcessComplete) {
-    body += '\nProcess completed :white_check_mark:';
-  } else if (!pending && updateFlags) {
-    body += '\n_Reply in thread with updates. Control: add :white_check_mark: reaction to verify._';
+function formatSystemRowText(systemKey, meta, { updated }) {
+  const teams = {
+    fuel: formatSafetyTeamMention(meta.safetyTeamUsergroupId),
+    samsara: formatMaintenanceTeamMention(meta.maintenanceTeamUsergroupId),
+    tms: formatSafetyTeamMention(meta.safetyTeamUsergroupId),
+  };
+  const labels = {
+    fuel: 'Fuel Card',
+    samsara: 'Samsara',
+    tms: 'TMS',
+  };
+  const label = labels[systemKey];
+  const team = teams[systemKey];
+  if (updated) {
+    return `*${label}* · ${team} · *UPDATED*`;
   }
-
-  return body;
+  return `*${label}* · ${team}`;
 }
 
-/** Phase 1 — teams tagged, work not yet marked complete. */
-function formatPhase1Message(submission, meta) {
-  return formatCoreBody(submission, meta, { pending: true });
+function formatWorkCompletedLine(workDone) {
+  if (workDone) {
+    return '*Work Completed:* :white_check_mark:';
+  }
+  return '*Work Completed:*';
 }
 
-/** Phase 2 — thread reply after safety marks systems updated. */
-function formatPhase2ThreadMessage(submission, updateFlags, meta) {
-  return formatCoreBody(submission, meta, {
-    pending: false,
-    updateFlags,
-  });
-}
-
-/** After control verifies (optional bot update). */
-function formatPhase2VerifiedMessage(submission, updateFlags, meta, verifierUserId) {
-  return `${formatCoreBody(submission, meta, {
-    pending: false,
-    updateFlags,
-    includeProcessComplete: true,
-  })}\n\n_Control verified by <@${verifierUserId}>_`;
+function checksToUpdateFlags(checks) {
+  return {
+    fuel: Boolean(checks?.fuel),
+    samsara: Boolean(checks?.samsara),
+    tms: Boolean(checks?.tms),
+  };
 }
 
 function formatEmailHtml(submission, meta, options = {}) {
-  const { phase = 1, updateFlags } = options;
-  const pending = phase === 1;
-  const text = formatCoreBody(submission, meta, {
-    pending,
-    updateFlags,
-    includeProcessComplete: phase === 2,
-  })
+  const { phase = 1, checks } = options;
+  const updateFlags = checks ? checksToUpdateFlags(checks) : null;
+  const workDone = checks && updateFlags.fuel && updateFlags.samsara && updateFlags.tms;
+
+  let text = formatPostHeaderText(submission, meta);
+  text += `\n\n*Fuel Card:* ${updateFlags?.fuel ? 'UPDATED' : 'Pending'}`;
+  text += `\n*Samsara:* ${updateFlags?.samsara ? 'UPDATED' : 'Pending'}`;
+  text += `\n*TMS:* ${updateFlags?.tms ? 'UPDATED' : 'Pending'}`;
+  text += `\n\n${formatWorkCompletedLine(workDone).replace(/\*/g, '')}`;
+
+  if (phase === 2 && workDone) {
+    text += '\nAll systems updated.';
+  }
+
+  const plain = text
     .replace(/\*/g, '')
     .replace(/<@[^>]+>/g, '')
-    .replace(/<!subteam[^>]+>/g, '');
+    .replace(/<!subteam[^>]+>/g, '')
+    .replace(/:white_check_mark:/g, '✓');
 
   return `<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#222;white-space:pre-line;">
-  <pre style="font-family:Arial,sans-serif;font-size:14px;">${escapeHtml(text)}</pre>
+  <pre style="font-family:Arial,sans-serif;font-size:14px;">${escapeHtml(plain)}</pre>
   <p style="color:#666;font-size:12px;margin-top:24px;">Submitted via /truckswitch · ${escapeHtml(meta.submittedAtIso)}</p>
 </body>
 </html>`;
@@ -121,8 +112,11 @@ function formatEmailHtml(submission, meta, options = {}) {
 
 function formatEmailSubject(submission, options = {}) {
   const { phase = 1 } = options;
-  const prefix = phase === 2 ? 'TRUCK SWITCH — Completed' : 'TRUCK SWITCH';
-  return `${prefix} — ${submission.driver} — ${submission.newTruck}`;
+  const base = `TRUCK SWITCH — ${submission.driver} — ${submission.newTruck}`;
+  if (phase === 2) {
+    return `Re: ${base}`;
+  }
+  return base;
 }
 
 function escapeHtml(text) {
@@ -134,10 +128,11 @@ function escapeHtml(text) {
 }
 
 module.exports = {
-  formatPhase1Message,
-  formatPhase2ThreadMessage,
-  formatPhase2VerifiedMessage,
+  formatPostHeaderText,
+  formatSystemRowText,
+  formatWorkCompletedLine,
   formatEmailHtml,
   formatEmailSubject,
+  checksToUpdateFlags,
   displayTrailer,
 };

@@ -36,6 +36,7 @@ async function deliverSlackAndEmail(slackPost, submission, meta, mailOptions = {
         { mailFailed: true, mailReason: mailResult.reason }
       );
     }
+    return mailResult;
   } catch (err) {
     if (rollback) {
       try {

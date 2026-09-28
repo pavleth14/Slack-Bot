@@ -34,14 +34,46 @@ async function sendTruckSwitchEmail(submission, meta, options = {}) {
     return { sent: false, reason: 'no_smtp' };
   }
 
-  await transport.sendMail({
+  const subject = formatEmailSubject(submission, options);
+  const info = await transport.sendMail({
     from: mail.from,
     to: mail.departmentEmails.join(','),
-    subject: formatEmailSubject(submission, options),
+    subject,
     html: formatEmailHtml(submission, meta, options),
   });
 
-  return { sent: true };
+  return {
+    sent: true,
+    messageId: info.messageId,
+    subject,
+  };
 }
 
-module.exports = { sendTruckSwitchEmail };
+async function sendTruckSwitchReplyEmail(
+  submission,
+  meta,
+  { inReplyTo, references, subject, checks }
+) {
+  const { mail } = loadConfig();
+  if (!mail.departmentEmails.length) {
+    return { sent: false, reason: 'no_recipients' };
+  }
+
+  const transport = createTransport();
+  if (!transport) {
+    return { sent: false, reason: 'no_smtp' };
+  }
+
+  const info = await transport.sendMail({
+    from: mail.from,
+    to: mail.departmentEmails.join(','),
+    subject,
+    html: formatEmailHtml(submission, meta, { phase: 2, checks }),
+    inReplyTo,
+    references,
+  });
+
+  return { sent: true, messageId: info.messageId };
+}
+
+module.exports = { sendTruckSwitchEmail, sendTruckSwitchReplyEmail };

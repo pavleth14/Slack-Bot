@@ -5,16 +5,12 @@ const {
   BLOCK_IDS,
   parseSubmissionValues,
 } = require('../blocks/truckSwitchModal');
-const { CALLBACK_ID: COMPLETE_CALLBACK_ID, BLOCK_IDS: COMPLETE_BLOCK_IDS } =
-  require('../blocks/completeModal');
-const { ACTION_MARK_COMPLETE } = require('../constants/actions');
+const { CHECK_ACTIONS } = require('../constants/actions');
 const {
   isUserAllowed,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
-  handleMarkCompleteAction,
-  processCompleteSubmission,
-  DeliveryError,
+  handleSystemCheckboxAction,
 } = require('../services/truckSwitch');
 
 const router = express.Router();
@@ -67,85 +63,44 @@ router.post('/interactions', async (req, res) => {
 
   if (payload.type === 'block_actions') {
     const actionId = payload.actions?.[0]?.action_id;
-    try {
-      let ephemeral = null;
-      if (actionId === ACTION_MARK_COMPLETE) {
-        ephemeral = await handleMarkCompleteAction(payload);
-      }
-      if (ephemeral) {
-        return res.json(ephemeral);
-      }
-      return res.status(200).send('');
-    } catch (err) {
-      console.error('[interactions] block_actions failed:', err.message);
-      return res.json({
-        response_type: 'ephemeral',
-        text: err.message || 'Action failed.',
+    if (CHECK_ACTIONS.has(actionId)) {
+      res.status(200).send('');
+      handleSystemCheckboxAction(payload).catch((err) => {
+        console.error('[interactions] checkbox failed:', err.message);
       });
+      return;
     }
+    return res.status(200).send('');
   }
 
-  if (payload.type === 'view_submission') {
-    const callbackId = payload.view?.callback_id;
+  if (payload.type === 'view_submission' && payload.view?.callback_id === CALLBACK_ID) {
     const userId = payload.user?.id;
 
-    if (callbackId === CALLBACK_ID) {
-      if (!isUserAllowed(userId)) {
-        return res.json({
-          response_action: 'errors',
-          errors: {
-            [BLOCK_IDS.driver]: 'You are not allowed to submit this form.',
-          },
-        });
-      }
-
-      const { data, errors } = parseSubmissionValues(payload.view.state.values);
-      if (Object.keys(errors).length > 0) {
-        return res.json({ response_action: 'errors', errors });
-      }
-
-      try {
-        await processTruckSwitchSubmission(data, userId);
-        return res.json({ response_action: 'clear' });
-      } catch (err) {
-        console.error('[interactions] phase1 failed:', err.message);
-        return res.json({
-          response_action: 'errors',
-          errors: {
-            [BLOCK_IDS.driver]: deliveryErrorMessage(err),
-          },
-        });
-      }
+    if (!isUserAllowed(userId)) {
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [BLOCK_IDS.driver]: 'You are not allowed to submit this form.',
+        },
+      });
     }
 
-    if (callbackId === COMPLETE_CALLBACK_ID) {
-      if (!isUserAllowed(userId)) {
-        return res.json({
-          response_action: 'errors',
-          errors: {
-            [COMPLETE_BLOCK_IDS.updates]: 'You are not allowed to submit.',
-          },
-        });
-      }
+    const { data, errors } = parseSubmissionValues(payload.view.state.values);
+    if (Object.keys(errors).length > 0) {
+      return res.json({ response_action: 'errors', errors });
+    }
 
-      try {
-        await processCompleteSubmission(payload.view, userId);
-        return res.json({ response_action: 'clear' });
-      } catch (err) {
-        if (err.validationErrors) {
-          return res.json({
-            response_action: 'errors',
-            errors: err.validationErrors,
-          });
-        }
-        console.error('[interactions] complete failed:', err.message);
-        return res.json({
-          response_action: 'errors',
-          errors: {
-            [COMPLETE_BLOCK_IDS.updates]: deliveryErrorMessage(err),
-          },
-        });
-      }
+    try {
+      await processTruckSwitchSubmission(data, userId);
+      return res.json({ response_action: 'clear' });
+    } catch (err) {
+      console.error('[interactions] phase1 failed:', err.message);
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [BLOCK_IDS.driver]: deliveryErrorMessage(err),
+        },
+      });
     }
   }
 

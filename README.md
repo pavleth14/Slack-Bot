@@ -1,41 +1,26 @@
 # Two Brothers — Slack TRUCK SWITCH Bot
 
-Standalone Node.js app for `/truckswitch`. No database; archive is Slack threads plus email.
-
-## Message format
-
-Posts follow the **TRUCK SWITCH** template: driver, equipment details, temporary switch flag, trailers (`/` if none), required updates, optional location note, and team lines:
-
-- **Fuel Card** → `@safetyteam`
-- **Samsara** → `@eldteam`
-- **TMS** → `@safetyteam`
+`/truckswitch` → modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS** via **checkboxes on the post**; the message updates with **UPDATED** and *Checked by @user*. When all three are checked: **Work Completed** :white_check_mark: and a **reply email** threads off the first message.
 
 ## Workflow
 
-1. **Phase 1** — `/truckswitch` form → channel post + email. **Mark work completed** button on the message.
-2. **Phase 2** — Safety checks updated systems (Fuel Card, Samsara, TMS) → thread reply with `Updated.` / `NA` + email.
-3. **Teams** — Reply in thread (manual, like “samsara updated”).
-4. **Control** — Add a **:white_check_mark:** reaction on the phase-2 thread message (members of control allowlist if configured). Bot posts *Control verified* in the thread.
+1. Submit form → post in `SLACK_CHANNEL_ID` + initial email.
+2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each row has a checkbox.
+3. On check → `chat.update` → `UPDATED` + context line *Checked by @user* (visible on the row; Slack shows the user on mention).
+4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
+5. Long **thread replies** remain manual.
 
-Slack + email must both succeed for phase 1 and 2 modals (rollback on email failure).
+No database. Message state lives in Slack **message metadata**.
 
-## Slack app setup
+## Slack app
 
-**Scopes:** `commands`, `chat:write`, `channels:history` (or `groups:history` for private channels)
-
-**Event Subscriptions** (for control reactions):
-
-- Enable events
-- Request URL: `https://<host>/slack/events`
-- Subscribe to bot event: `reaction_added`
-
-**Interactivity:** `https://<host>/slack/interactions`  
-**Slash command:** `https://<host>/slack/commands/truckswitch`
+- **Scopes:** `commands`, `chat:write`
+- **Interactivity:** `https://<host>/slack/interactions`
+- **Slash command:** `https://<host>/slack/commands/truckswitch`
 
 ## Environment
 
-See `.env.example`. User group IDs for `@safetyteam`, `@eldteam`, `@controlteam` mentions.
+- `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
+- `DEPARTMENT_EMAILS` + SMTP
 
-## Run
-
-`npm install` → `npm start` (port **5002**). See `deploy/nginx.api.twobrothersfreight.com.conf` for proxy.
+Port **5002**. See `deploy/nginx.api.twobrothersfreight.com.conf`.

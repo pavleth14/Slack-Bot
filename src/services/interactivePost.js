@@ -1,0 +1,142 @@
+const {
+  formatPostHeaderText,
+  formatSystemRowText,
+  formatWorkCompletedLine,
+} = require('../format/truckSwitchMessage');
+const {
+  ACTION_CHECK_FUEL,
+  ACTION_CHECK_SAMSARA,
+  ACTION_CHECK_TMS,
+} = require('../constants/actions');
+
+const METADATA_EVENT = 'truck_switch_v1';
+
+function emptyChecks() {
+  return { fuel: null, samsara: null, tms: null };
+}
+
+function createPostMetadata(submission, overrides = {}) {
+  return {
+    event_type: METADATA_EVENT,
+    event_payload: {
+      submission,
+      checks: emptyChecks(),
+      emailMessageId: null,
+      emailSubject: null,
+      workCompleteMailSent: false,
+      submissionMeta: null,
+      ...overrides,
+    },
+  };
+}
+
+function parsePostMetadata(message) {
+  const payload = message?.metadata?.event_payload;
+  if (!payload?.submission) return null;
+  return payload;
+}
+
+function allSystemsUpdated(checks) {
+  return checks.fuel && checks.samsara && checks.tms;
+}
+
+function buildCheckboxAccessory(actionId, label) {
+  return {
+    type: 'checkboxes',
+    action_id: actionId,
+    options: [
+      {
+        text: { type: 'plain_text', text: label },
+        value: 'checked',
+      },
+    ],
+  };
+}
+
+function buildInteractiveBlocks(submission, meta, payload) {
+  const checks = payload.checks || emptyChecks();
+  const workDone = allSystemsUpdated(checks);
+
+  const blocks = [
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: formatPostHeaderText(submission, meta) },
+    },
+    ...buildSystemRowBlocks('fuel', ACTION_CHECK_FUEL, 'Mark updated', checks, meta),
+    ...buildSystemRowBlocks('samsara', ACTION_CHECK_SAMSARA, 'Mark updated', checks, meta),
+    ...buildSystemRowBlocks('tms', ACTION_CHECK_TMS, 'Mark updated', checks, meta),
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Status*\n\n${formatWorkCompletedLine(workDone)}`,
+      },
+    },
+  ];
+
+  if (!workDone) {
+    blocks.push({
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: '_Check each system when your team completes the update. Reply in thread for details._',
+        },
+      ],
+    });
+  }
+
+  return blocks;
+}
+
+function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) {
+  const checkedBy = checks[systemKey];
+  const blocks = [];
+
+  const section = {
+    type: 'section',
+    block_id: `row_${systemKey}`,
+    text: {
+      type: 'mrkdwn',
+      text: formatSystemRowText(systemKey, meta, {
+        updated: Boolean(checkedBy),
+      }),
+    },
+  };
+
+  if (!checkedBy) {
+    section.accessory = buildCheckboxAccessory(actionId, checkboxLabel);
+  }
+
+  blocks.push(section);
+
+  if (checkedBy) {
+    blocks.push({
+      type: 'context',
+      elements: [
+        {
+          type: 'mrkdwn',
+          text: `Checked by <@${checkedBy}>`,
+        },
+      ],
+    });
+  }
+
+  return blocks;
+}
+
+function buildPostFallbackText(submission, meta, payload) {
+  const checks = payload?.checks || emptyChecks();
+  const workDone = allSystemsUpdated(checks);
+  return `${formatPostHeaderText(submission, meta)}\n${formatWorkCompletedLine(workDone)}`;
+}
+
+module.exports = {
+  METADATA_EVENT,
+  emptyChecks,
+  createPostMetadata,
+  parsePostMetadata,
+  allSystemsUpdated,
+  buildInteractiveBlocks,
+  buildPostFallbackText,
+};

@@ -1,75 +1,30 @@
 const { WebClient } = require('@slack/web-api');
 const { loadConfig } = require('../config');
 const { buildTruckSwitchModal } = require('../blocks/truckSwitchModal');
-const { buildCompleteModal } = require('../blocks/completeModal');
-const {
-  formatPhase1Message,
-  formatPhase2ThreadMessage,
-} = require('../format/truckSwitchMessage');
-const { ACTION_MARK_COMPLETE } = require('../constants/actions');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
+const { isUserAllowed } = require('./access');
+const { sendTruckSwitchReplyEmail } = require('./mail');
 const {
-  isUserAllowed,
-  isSafetyOperator,
-} = require('./access');
+  createPostMetadata,
+  parsePostMetadata,
+  allSystemsUpdated,
+  buildInteractiveBlocks,
+  buildPostFallbackText,
+} = require('./interactivePost');
+const {
+  CHECK_ACTIONS,
+  ACTION_TO_SYSTEM,
+} = require('../constants/actions');
 
 function buildMeta(submitterUserId, extra = {}) {
-  const {
-    safetyTeamUsergroupId,
-    controlTeamUsergroupId,
-    eldTeamUsergroupId,
-  } = loadConfig().slack;
+  const { safetyTeamUsergroupId, maintenanceTeamUsergroupId } = loadConfig().slack;
   return {
     submitterUserId,
     submittedAtIso: new Date().toISOString(),
     safetyTeamUsergroupId,
-    controlTeamUsergroupId,
-    eldTeamUsergroupId,
+    maintenanceTeamUsergroupId,
     ...extra,
   };
-}
-
-function encodeSubmission(submission) {
-  return JSON.stringify(submission);
-}
-
-function decodeSubmission(value) {
-  return JSON.parse(value);
-}
-
-function buildPhase1Blocks(submission, meta) {
-  const text = formatPhase1Message(submission, meta);
-  return [
-    { type: 'section', text: { type: 'mrkdwn', text } },
-    {
-      type: 'actions',
-      block_id: 'phase1_actions',
-      elements: [
-        {
-          type: 'button',
-          action_id: ACTION_MARK_COMPLETE,
-          text: { type: 'plain_text', text: 'Mark work completed' },
-          value: encodeSubmission(submission),
-        },
-      ],
-    },
-  ];
-}
-
-function buildPhase2Blocks(submission, updateFlags, meta) {
-  const text = formatPhase2ThreadMessage(submission, updateFlags, meta);
-  return [
-    { type: 'section', text: { type: 'mrkdwn', text } },
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: 'Teams: reply in thread when your part is done. Control: add :white_check_mark: reaction to verify.',
-        },
-      ],
-    },
-  ];
 }
 
 async function openTruckSwitchModal(triggerId) {
@@ -85,16 +40,27 @@ async function processTruckSwitchSubmission(submission, submitterUserId) {
   const { channelId } = loadConfig().slack;
   const client = slackClient();
   const meta = buildMeta(submitterUserId);
-  const text = formatPhase1Message(submission, meta);
-  const blocks = buildPhase1Blocks(submission, meta);
+  const metadata = createPostMetadata(submission, {
+    submissionMeta: {
+      submitterUserId,
+      submittedAtIso: meta.submittedAtIso,
+    },
+  });
+  const payload = metadata.event_payload;
+  const blocks = buildInteractiveBlocks(submission, meta, payload);
+  const text = buildPostFallbackText(submission, meta, payload);
 
-  await deliverSlackAndEmail(
+  let postRef;
+
+  const mailResult = await deliverSlackAndEmail(
     async () => {
       const post = await client.chat.postMessage({
         channel: channelId,
         text,
         blocks,
+        metadata,
       });
+      postRef = post;
       return {
         rollback: async () => {
           await client.chat.delete({
@@ -108,134 +74,114 @@ async function processTruckSwitchSubmission(submission, submitterUserId) {
     meta,
     { phase: 1 }
   );
+
+  payload.emailMessageId = mailResult.messageId;
+  payload.emailSubject = mailResult.subject;
+  const updatedMetadata = createPostMetadata(submission, {
+    emailMessageId: mailResult.messageId,
+    emailSubject: mailResult.subject,
+  });
+
+  await client.chat.update({
+    channel: postRef.channel,
+    ts: postRef.ts,
+    text: buildPostFallbackText(submission, meta, payload),
+    blocks: buildInteractiveBlocks(submission, meta, payload),
+    metadata: updatedMetadata,
+  });
 }
 
-async function handleMarkCompleteAction(payload) {
+async function handleSystemCheckboxAction(payload) {
+  const action = payload.actions?.[0];
+  const actionId = action?.action_id;
+
+  if (!CHECK_ACTIONS.has(actionId)) {
+    return null;
+  }
+
+  const selected = action.selected_options || [];
+  if (!selected.length) {
+    return { response_type: 'ephemeral', text: 'Select the checkbox to mark updated.' };
+  }
+
   const userId = payload.user?.id;
-  if (!isSafetyOperator(userId)) {
+  const channel = payload.channel?.id;
+  const messageTs = payload.message?.ts;
+
+  const state = parsePostMetadata(payload.message);
+  if (!state) {
+    return { response_type: 'ephemeral', text: 'Could not read switch state.' };
+  }
+
+  const systemKey = ACTION_TO_SYSTEM[actionId];
+  if (state.checks[systemKey]) {
     return {
       response_type: 'ephemeral',
-      text: 'Only safety team members can mark work completed.',
+      text: 'This system is already marked UPDATED.',
     };
   }
 
-  const action = payload.actions?.[0];
-  if (!action?.value) {
-    return { response_type: 'ephemeral', text: 'Invalid button payload.' };
-  }
-
-  let submission;
-  try {
-    submission = decodeSubmission(action.value);
-  } catch {
-    return { response_type: 'ephemeral', text: 'Could not read switch data.' };
-  }
-
-  const channel = payload.channel?.id;
-  const threadTs = payload.message?.ts;
-  if (!channel || !threadTs) {
-    return { response_type: 'ephemeral', text: 'Missing message context.' };
-  }
-
-  const privateMetadata = JSON.stringify({
-    channel,
-    thread_ts: threadTs,
-    submission,
-  });
-
-  const { botToken } = loadConfig().slack;
-  const client = new WebClient(botToken);
-  await client.views.open({
-    trigger_id: payload.trigger_id,
-    view: buildCompleteModal(privateMetadata),
-  });
-
-  return null;
-}
-
-async function processCompleteSubmission(view, userId) {
-  let ctx;
-  try {
-    ctx = JSON.parse(view.private_metadata || '{}');
-  } catch {
-    throw new DeliveryError('Invalid session metadata.');
-  }
-
-  const { channel, thread_ts: threadTs, submission } = ctx;
-  if (!channel || !threadTs || !submission) {
-    throw new DeliveryError('Missing thread or submission data.');
-  }
+  state.checks[systemKey] = userId;
+  const submission = state.submission;
+  const meta = buildMeta(
+    state.submissionMeta?.submitterUserId || userId,
+    {
+      submittedAtIso:
+        state.submissionMeta?.submittedAtIso || new Date().toISOString(),
+    }
+  );
 
   const client = slackClient();
-  const meta = buildMeta(userId);
+  const metadata = {
+    event_type: 'truck_switch_v1',
+    event_payload: state,
+  };
 
-  const { parseCompleteValues } = require('../blocks/completeModal');
-  const { data: updateFlags, errors } = parseCompleteValues(
-    view.state.values
-  );
-  if (Object.keys(errors).length) {
-    const err = new Error('Validation failed.');
-    err.validationErrors = errors;
-    throw err;
-  }
+  await client.chat.update({
+    channel,
+    ts: messageTs,
+    text: buildPostFallbackText(submission, meta, state),
+    blocks: buildInteractiveBlocks(submission, meta, state),
+    metadata,
+  });
 
-  const text = formatPhase2ThreadMessage(submission, updateFlags, meta);
-  const blocks = buildPhase2Blocks(submission, updateFlags, meta);
-
-  const parentBlocksBefore = buildPhase1Blocks(submission, meta);
-  const parentTextBefore = formatPhase1Message(submission, meta);
-
-  await deliverSlackAndEmail(
-    async () => {
-      const threadPost = await client.chat.postMessage({
-        channel,
-        thread_ts: threadTs,
-        text,
-        blocks,
-      });
-
-      await client.chat.update({
-        channel,
-        ts: threadTs,
-        text: `${parentTextBefore}\n\n_Work completed — see thread._`,
-        blocks: [
-          {
-            type: 'section',
-            text: {
-              type: 'mrkdwn',
-              text: `${parentTextBefore}\n\n_Work completed — see thread._`,
-            },
-          },
-        ],
-      });
-
-      return {
-        rollback: async () => {
-          await client.chat.delete({
-            channel: threadPost.channel,
-            ts: threadPost.ts,
-          });
+  if (allSystemsUpdated(state.checks) && !state.workCompleteMailSent) {
+    if (state.emailMessageId && state.emailSubject) {
+      try {
+        const replySubject = /^Re:/i.test(state.emailSubject)
+          ? state.emailSubject
+          : `Re: ${state.emailSubject}`;
+        const replyResult = await sendTruckSwitchReplyEmail(submission, meta, {
+          inReplyTo: state.emailMessageId,
+          references: state.emailMessageId,
+          subject: replySubject,
+          checks: state.checks,
+        });
+        if (!replyResult.sent) {
+          console.error('[truckSwitch] work-complete reply email failed:', replyResult.reason);
+        } else {
+          state.workCompleteMailSent = true;
           await client.chat.update({
             channel,
-            ts: threadTs,
-            text: parentTextBefore,
-            blocks: parentBlocksBefore,
+            ts: messageTs,
+            text: buildPostFallbackText(submission, meta, state),
+            blocks: buildInteractiveBlocks(submission, meta, state),
+            metadata: { event_type: 'truck_switch_v1', event_payload: state },
           });
-        },
-      };
-    },
-    submission,
-    meta,
-    { phase: 2, updateFlags }
-  );
+        }
+      } catch (err) {
+        console.error('[truckSwitch] work-complete reply email failed:', err.message);
+      }
+    }
+  }
+
+  return null;
 }
 
 module.exports = {
   DeliveryError,
   isUserAllowed,
-  isSafetyOperator,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
-  handleMarkCompleteAction,
-  processCompleteSubmission,
+  handleSystemCheckboxAction,
 };
