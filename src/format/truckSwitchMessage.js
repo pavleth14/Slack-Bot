@@ -9,7 +9,7 @@ function formatMaintenanceTeamMention(maintenanceTeamUsergroupId) {
   if (maintenanceTeamUsergroupId) {
     return `<!subteam^${maintenanceTeamUsergroupId}|maintenance>`;
   }
-  return '@maintenance';
+  return '@maintenanceteam';
 }
 
 function displayTrailer(value) {
