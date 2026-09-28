@@ -10,6 +10,7 @@ const {
   isUserAllowed,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
+  notifySubmissionFailed,
   handleSystemCheckboxAction,
 } = require('../services/truckSwitch');
 
@@ -25,16 +26,6 @@ router.use(
 );
 
 router.use(verifySlackSignature);
-
-function deliveryErrorMessage(err) {
-  if (err.mailFailed) {
-    return 'Email could not be sent. Slack post was rolled back. Fix email settings and try again.';
-  }
-  if (err.slackFailed) {
-    return 'Could not post to Slack channel. Check bot channel access and try again.';
-  }
-  return err.message || 'Delivery failed.';
-}
 
 router.post('/commands/truckswitch', async (req, res) => {
   const userId = req.body.user_id;
@@ -90,18 +81,12 @@ router.post('/interactions', async (req, res) => {
       return res.json({ response_action: 'errors', errors });
     }
 
-    try {
-      await processTruckSwitchSubmission(data, userId);
-      return res.json({ response_action: 'clear' });
-    } catch (err) {
+    res.json({ response_action: 'clear' });
+    processTruckSwitchSubmission(data, userId).catch((err) => {
       console.error('[interactions] phase1 failed:', err.message);
-      return res.json({
-        response_action: 'errors',
-        errors: {
-          [BLOCK_IDS.driver]: deliveryErrorMessage(err),
-        },
-      });
-    }
+      notifySubmissionFailed(userId, err).catch(() => {});
+    });
+    return;
   }
 
   return res.status(200).send('');

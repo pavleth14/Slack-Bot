@@ -4,7 +4,7 @@
 
 ## Workflow
 
-1. Submit form → post in `SLACK_CHANNEL_ID` + initial email.
+1. Submit form → post in `SLACK_CHANNEL_ID` + initial email. Optional **attachments** (PDF/images) go to **email** and a **thread reply** on the post.
 2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each row has a checkbox.
 3. On check → `chat.update` → `UPDATED` + context line *Checked by @user* (visible on the row; Slack shows the user on mention).
 4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
@@ -14,7 +14,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Slack app
 
-- **Scopes:** `commands`, `chat:write`
+- **Scopes:** `commands`, `chat:write`, `files:read`, `files:write` (optional file upload in modal)
 - **Interactivity:** `https://<host>/slack/interactions`
 - **Slash command:** `https://<host>/slack/commands/truckswitch`
 

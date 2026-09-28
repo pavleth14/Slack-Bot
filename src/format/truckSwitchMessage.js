@@ -24,11 +24,20 @@ function formatTemporaryLine(isTemporary) {
   return 'Switch is not temporary.';
 }
 
+function formatAttachmentsLine(submission) {
+  const names = submission.attachmentNames;
+  if (!names?.length) {
+    return '';
+  }
+  return `\n*Attachments:* ${names.join(', ')}`;
+}
+
 function formatPostHeaderText(submission, meta) {
   const requiredUpdates = submission.requiredUpdates || 'Truck switch.';
   const locationBlock = submission.locationNote
     ? `\n*Location Note:* ${submission.locationNote}`
     : '';
+  const attachmentsBlock = formatAttachmentsLine(submission);
 
   return `*TRUCK SWITCH*
 
@@ -43,7 +52,7 @@ ${formatTemporaryLine(submission.switchTemporary)}
 *Old Trailer Number:* ${displayTrailer(submission.oldTrailer)}
 *New Trailer Number:* ${displayTrailer(submission.newTrailer)}
 
-*Required Updates:* ${requiredUpdates}${locationBlock}`;
+*Required Updates:* ${requiredUpdates}${locationBlock}${attachmentsBlock}`;
 }
 
 function formatSystemRowText(systemKey, meta, { updated }) {

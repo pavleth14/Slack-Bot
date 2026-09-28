@@ -2,6 +2,11 @@ const { WebClient } = require('@slack/web-api');
 const { loadConfig } = require('../config');
 const { buildTruckSwitchModal } = require('../blocks/truckSwitchModal');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
+const {
+  SlackFileError,
+  downloadSlackFileBuffers,
+  uploadFilesToThread,
+} = require('./slackFiles');
 const { isUserAllowed } = require('./access');
 const { sendTruckSwitchReplyEmail } = require('./mail');
 const {
@@ -36,9 +41,53 @@ async function openTruckSwitchModal(triggerId) {
   });
 }
 
-async function processTruckSwitchSubmission(submission, submitterUserId) {
+async function notifySubmissionFailed(userId, err) {
+  const client = slackClient();
+  let text =
+    'Your truck switch could not be completed. Nothing was posted to the channel.';
+  if (err instanceof DeliveryError) {
+    if (err.mailFailed) {
+      text =
+        'Email could not be sent. The channel post was rolled back. Fix email settings or try again.';
+    } else if (err.slackFailed) {
+      text = 'Could not post to the Slack channel. Check bot channel access and try again.';
+    } else if (err.fileFailed) {
+      text =
+        'Could not process attached files. Reinstall the app with files:read (and files:write) scopes, or try again without attachments.';
+    }
+  } else if (err instanceof SlackFileError) {
+    text = `Could not process attached files: ${err.message}`;
+  } else if (err?.message) {
+    text = err.message;
+  }
+
+  try {
+    await client.chat.postMessage({ channel: userId, text });
+  } catch (dmErr) {
+    console.error('[truckSwitch] failed to DM submitter:', dmErr.message);
+  }
+}
+
+async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
   const { channelId } = loadConfig().slack;
   const client = slackClient();
+  const { attachmentFiles = [], ...formFields } = rawSubmission;
+
+  let fileAttachments = [];
+  try {
+    fileAttachments = await downloadSlackFileBuffers(client, attachmentFiles);
+  } catch (err) {
+    if (err instanceof SlackFileError) {
+      throw new DeliveryError(err.message, { fileFailed: true });
+    }
+    throw err;
+  }
+
+  const submission = {
+    ...formFields,
+    attachmentNames: fileAttachments.map((f) => f.filename),
+  };
+
   const meta = buildMeta(submitterUserId);
   const metadata = createPostMetadata(submission, {
     submissionMeta: {
@@ -72,8 +121,14 @@ async function processTruckSwitchSubmission(submission, submitterUserId) {
     },
     submission,
     meta,
-    { phase: 1 }
+    { phase: 1, attachments: fileAttachments }
   );
+
+  try {
+    await uploadFilesToThread(client, postRef.channel, postRef.ts, fileAttachments);
+  } catch (err) {
+    console.error('[truckSwitch] thread file upload failed:', err.message);
+  }
 
   payload.emailMessageId = mailResult.messageId;
   payload.emailSubject = mailResult.subject;
@@ -183,5 +238,6 @@ module.exports = {
   isUserAllowed,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
+  notifySubmissionFailed,
   handleSystemCheckboxAction,
 };

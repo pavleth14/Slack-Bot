@@ -35,11 +35,18 @@ async function sendTruckSwitchEmail(submission, meta, options = {}) {
   }
 
   const subject = formatEmailSubject(submission, options);
+  const mailAttachments = (options.attachments || []).map((a) => ({
+    filename: a.filename,
+    content: a.content,
+    contentType: a.contentType,
+  }));
+
   const info = await transport.sendMail({
     from: mail.from,
     to: mail.departmentEmails.join(','),
     subject,
     html: formatEmailHtml(submission, meta, options),
+    attachments: mailAttachments.length ? mailAttachments : undefined,
   });
 
   return {

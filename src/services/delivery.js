@@ -3,11 +3,15 @@ const { loadConfig } = require('../config');
 const { sendTruckSwitchEmail } = require('./mail');
 
 class DeliveryError extends Error {
-  constructor(message, { slackFailed = false, mailFailed = false, mailReason } = {}) {
+  constructor(
+    message,
+    { slackFailed = false, mailFailed = false, fileFailed = false, mailReason } = {}
+  ) {
     super(message);
     this.name = 'DeliveryError';
     this.slackFailed = slackFailed;
     this.mailFailed = mailFailed;
+    this.fileFailed = fileFailed;
     this.mailReason = mailReason;
   }
 }

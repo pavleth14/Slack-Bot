@@ -8,7 +8,11 @@ const BLOCK_IDS = {
   newTrailer: 'new_trailer_block',
   requiredUpdates: 'required_updates_block',
   locationNote: 'location_note_block',
+  attachments: 'attachments_block',
 };
+
+const ATTACHMENT_ACTION_ID = 'attachments';
+const MAX_ATTACHMENT_FILES = 5;
 
 function buildTruckSwitchModal() {
   return {
@@ -115,6 +119,22 @@ function buildTruckSwitchModal() {
           },
         },
       },
+      {
+        type: 'input',
+        block_id: BLOCK_IDS.attachments,
+        optional: true,
+        label: { type: 'plain_text', text: 'Attachments (optional)' },
+        hint: {
+          type: 'plain_text',
+          text: 'Images or PDFs — invoices, maintenance docs, etc. Up to 5 files.',
+        },
+        element: {
+          type: 'file_input',
+          action_id: ATTACHMENT_ACTION_ID,
+          max_files: MAX_ATTACHMENT_FILES,
+          filetypes: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'],
+        },
+      },
     ],
   };
 }
@@ -138,6 +158,14 @@ function parseSubmissionValues(values) {
     'Truck switch.';
   const locationNote =
     values[BLOCK_IDS.locationNote]?.location_note?.value?.trim() || '';
+  const attachmentFiles = (
+    values[BLOCK_IDS.attachments]?.[ATTACHMENT_ACTION_ID]?.files || []
+  )
+    .filter((f) => f?.id)
+    .map((f) => ({
+      id: f.id,
+      name: f.name || f.title || 'attachment',
+    }));
 
   const errors = {};
   if (!driver) errors[BLOCK_IDS.driver] = 'Driver name is required.';
@@ -157,6 +185,7 @@ function parseSubmissionValues(values) {
       newTrailer,
       requiredUpdates,
       locationNote,
+      attachmentFiles,
     },
     errors,
   };
