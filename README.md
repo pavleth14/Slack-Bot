@@ -14,7 +14,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Slack app
 
-- **Scopes:** `commands`, `chat:write`, `files:read`, `files:write` (optional file upload in modal)
+- **Scopes:** `commands`, `chat:write`. For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
 - **Slash command:** `https://<host>/slack/commands/truckswitch`
 

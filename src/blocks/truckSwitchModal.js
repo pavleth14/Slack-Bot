@@ -14,14 +14,28 @@ const BLOCK_IDS = {
 const ATTACHMENT_ACTION_ID = 'attachments';
 const MAX_ATTACHMENT_FILES = 5;
 
-function buildTruckSwitchModal() {
+function buildAttachmentBlock() {
   return {
-    type: 'modal',
-    callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'TRUCK SWITCH' },
-    submit: { type: 'plain_text', text: 'Submit' },
-    close: { type: 'plain_text', text: 'Cancel' },
-    blocks: [
+    type: 'input',
+    block_id: BLOCK_IDS.attachments,
+    optional: true,
+    label: { type: 'plain_text', text: 'Attachments (optional)' },
+    hint: {
+      type: 'plain_text',
+      text: 'PDF or images, up to 5 files.',
+    },
+    element: {
+      type: 'file_input',
+      action_id: ATTACHMENT_ACTION_ID,
+      max_files: MAX_ATTACHMENT_FILES,
+    },
+  };
+}
+
+function buildTruckSwitchModal(options = {}) {
+  const includeAttachments = options.includeAttachments !== false;
+
+  const blocks = [
       {
         type: 'input',
         block_id: BLOCK_IDS.driver,
@@ -119,23 +133,19 @@ function buildTruckSwitchModal() {
           },
         },
       },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.attachments,
-        optional: true,
-        label: { type: 'plain_text', text: 'Attachments (optional)' },
-        hint: {
-          type: 'plain_text',
-          text: 'Images or PDFs — invoices, maintenance docs, etc. Up to 5 files.',
-        },
-        element: {
-          type: 'file_input',
-          action_id: ATTACHMENT_ACTION_ID,
-          max_files: MAX_ATTACHMENT_FILES,
-          filetypes: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'],
-        },
-      },
-    ],
+  ];
+
+  if (includeAttachments) {
+    blocks.push(buildAttachmentBlock());
+  }
+
+  return {
+    type: 'modal',
+    callback_id: CALLBACK_ID,
+    title: { type: 'plain_text', text: 'TRUCK SWITCH' },
+    submit: { type: 'plain_text', text: 'Submit' },
+    close: { type: 'plain_text', text: 'Cancel' },
+    blocks,
   };
 }
 

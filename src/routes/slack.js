@@ -9,6 +9,7 @@ const { CHECK_ACTIONS } = require('../constants/actions');
 const {
   isUserAllowed,
   openTruckSwitchModal,
+  formatViewsOpenError,
   processTruckSwitchSubmission,
   notifySubmissionFailed,
   handleSystemCheckboxAction,
@@ -35,12 +36,20 @@ router.post('/commands/truckswitch', async (req, res) => {
     return res.status(200).send('You are not allowed to use this command.');
   }
 
-  res.status(200).send('');
-
   try {
     await openTruckSwitchModal(triggerId);
+    return res.status(200).send('');
   } catch (err) {
-    console.error('[slash/truckswitch] views.open failed:', err.message);
+    const detail = formatViewsOpenError(err);
+    console.error('[slash/truckswitch] views.open failed:', detail, err.data || '');
+    const hint =
+      detail === 'missing_scope' || /file_input|files:read/i.test(detail)
+        ? ' Add bot scopes files:read and files:write in the Slack app, reinstall to the workspace, then restart the bot. Until then set SLACK_ENABLE_MODAL_FILES=false in .env.'
+        : '';
+    return res.status(200).json({
+      response_type: 'ephemeral',
+      text: `Could not open the truck switch form (${detail}).${hint}`,
+    });
   }
 });
 

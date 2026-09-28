@@ -32,12 +32,20 @@ function buildMeta(submitterUserId, extra = {}) {
   };
 }
 
+function formatViewsOpenError(err) {
+  const meta = err?.data?.response_metadata?.messages;
+  if (Array.isArray(meta) && meta.length) {
+    return meta.join(' ');
+  }
+  return err?.data?.error || err?.message || 'unknown error';
+}
+
 async function openTruckSwitchModal(triggerId) {
-  const { botToken } = loadConfig().slack;
+  const { botToken, enableModalFileUpload } = loadConfig().slack;
   const client = new WebClient(botToken);
   await client.views.open({
     trigger_id: triggerId,
-    view: buildTruckSwitchModal(),
+    view: buildTruckSwitchModal({ includeAttachments: enableModalFileUpload }),
   });
 }
 
@@ -237,6 +245,7 @@ module.exports = {
   DeliveryError,
   isUserAllowed,
   openTruckSwitchModal,
+  formatViewsOpenError,
   processTruckSwitchSubmission,
   notifySubmissionFailed,
   handleSystemCheckboxAction,
