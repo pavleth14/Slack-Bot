@@ -4,7 +4,7 @@ const BLOCK_IDS = {
 };
 
 const CHECKBOX_OPTIONS = {
-  fuel: { value: 'fuel', text: 'Fuel card' },
+  fuel: { value: 'fuel', text: 'Fuel Card' },
   samsara: { value: 'samsara', text: 'Samsara' },
   tms: { value: 'tms', text: 'TMS' },
 };

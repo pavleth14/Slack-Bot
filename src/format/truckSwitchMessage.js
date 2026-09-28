@@ -1,9 +1,3 @@
-const CHECKLIST_ITEMS = [
-  { key: 'fuel', label: 'Fuel card' },
-  { key: 'samsara', label: 'Samsara' },
-  { key: 'tms', label: 'TMS' },
-];
-
 function formatSafetyTeamMention(safetyTeamUsergroupId) {
   if (safetyTeamUsergroupId) {
     return `<!subteam^${safetyTeamUsergroupId}|safetyteam>`;
@@ -11,90 +5,115 @@ function formatSafetyTeamMention(safetyTeamUsergroupId) {
   return '@safetyteam';
 }
 
-function formatControlTeamMention(controlTeamUsergroupId) {
-  if (controlTeamUsergroupId) {
-    return `<!subteam^${controlTeamUsergroupId}|controlteam>`;
+function formatEldTeamMention(eldTeamUsergroupId) {
+  if (eldTeamUsergroupId) {
+    return `<!subteam^${eldTeamUsergroupId}|eldteam>`;
   }
-  return '@controlteam';
+  return '@eldteam';
 }
 
-function formatChecklistLines(updateFlags, { pending = false } = {}) {
-  return CHECKLIST_ITEMS.map(({ key, label }) => {
-    if (pending || !updateFlags) {
-      return `• ${label} -`;
-    }
-    const suffix = updateFlags[key] ? 'updated' : '-';
-    return `• ${label} - ${suffix}`;
-  }).join('\n');
+function displayTrailer(value) {
+  const v = String(value || '').trim();
+  return v || '/';
 }
 
-function formatVehicleBlock(submission) {
-  return `${submission.driver}
-
-Old Truck Number
-${submission.oldTruck}
-
-New Truck Number
-${submission.newTruck}
-
-Old Trailer Number
-${submission.oldTrailer}
-
-New Trailer Number
-${submission.newTrailer}`;
+function formatTemporaryLine(isTemporary) {
+  if (isTemporary) {
+    return 'Switch is Temporary.';
+  }
+  return 'Switch is not temporary.';
 }
 
-/** Phase 1 — initial request, checklist pending. */
+function formatAssignmentBlock(meta, { pending, updateFlags }) {
+  if (pending) {
+    return `Fuel Card: ${formatSafetyTeamMention(meta.safetyTeamUsergroupId)}
+Samsara: ${formatEldTeamMention(meta.eldTeamUsergroupId)}
+TMS: ${formatSafetyTeamMention(meta.safetyTeamUsergroupId)}`;
+  }
+
+  const line = (label, updated) => {
+    if (updated) return `${label}: Updated.`;
+    return `${label}: NA`;
+  };
+
+  return `${line('Fuel Card', updateFlags?.fuel)}
+${updateFlags?.samsara ? 'Samsara: Updated.' : 'Samsara:'}
+${line('TMS', updateFlags?.tms)}`;
+}
+
+function formatCoreBody(submission, meta, { pending, updateFlags, includeProcessComplete } = {}) {
+  const requiredUpdates = submission.requiredUpdates || 'Truck switch.';
+  const locationBlock = submission.locationNote
+    ? `\nLocation Note: ${submission.locationNote}\n`
+    : '';
+
+  let body = `*TRUCK SWITCH*
+
+Driver name: ${submission.driver}
+
+*Equipment Switch Details*
+
+Old Truck Number: ${submission.oldTruck}
+New Truck Number: ${submission.newTruck}
+${formatTemporaryLine(submission.switchTemporary)}
+
+Old Trailer Number: ${displayTrailer(submission.oldTrailer)}
+New Trailer Number: ${displayTrailer(submission.newTrailer)}
+
+Required Updates: ${requiredUpdates}${locationBlock}
+${formatAssignmentBlock(meta, { pending, updateFlags })}
+
+Status
+
+Work Completed:`;
+
+  if (includeProcessComplete) {
+    body += '\nProcess completed :white_check_mark:';
+  } else if (!pending && updateFlags) {
+    body += '\n_Reply in thread with updates. Control: add :white_check_mark: reaction to verify._';
+  }
+
+  return body;
+}
+
+/** Phase 1 — teams tagged, work not yet marked complete. */
 function formatPhase1Message(submission, meta) {
-  const checklist = formatChecklistLines(null, { pending: true });
-  const mention = formatSafetyTeamMention(meta.safetyTeamUsergroupId);
-  return `${formatVehicleBlock(submission)}
-
-${checklist}
-
-${mention}`;
+  return formatCoreBody(submission, meta, { pending: true });
 }
 
-/** Phase 2 — thread reply after safety marks complete. */
+/** Phase 2 — thread reply after safety marks systems updated. */
 function formatPhase2ThreadMessage(submission, updateFlags, meta) {
-  const checklist = formatChecklistLines(updateFlags);
-  const mention = formatControlTeamMention(meta.controlTeamUsergroupId);
-  return `${formatVehicleBlock(submission)}
+  return formatCoreBody(submission, meta, {
+    pending: false,
+    updateFlags,
+  });
+}
 
-${checklist}
-
-Work Completed
-
-${mention}`;
+/** After control verifies (optional bot update). */
+function formatPhase2VerifiedMessage(submission, updateFlags, meta, verifierUserId) {
+  return `${formatCoreBody(submission, meta, {
+    pending: false,
+    updateFlags,
+    includeProcessComplete: true,
+  })}\n\n_Control verified by <@${verifierUserId}>_`;
 }
 
 function formatEmailHtml(submission, meta, options = {}) {
   const { phase = 1, updateFlags } = options;
-  const checklistLines =
-    phase === 1
-      ? formatChecklistLines(null, { pending: true })
-      : formatChecklistLines(updateFlags);
-  const checklistHtml = checklistLines
-    .split('\n')
-    .map((line) => `<li>${escapeHtml(line.replace(/^•\s*/, ''))}</li>`)
-    .join('\n');
-
-  const footerTeam = phase === 1 ? '@safetyteam' : '@controlteam — Work Completed';
-  const extra = phase === 2 ? '<p style="margin:16px 0 0;"><strong>Work Completed</strong></p>' : '';
+  const pending = phase === 1;
+  const text = formatCoreBody(submission, meta, {
+    pending,
+    updateFlags,
+    includeProcessComplete: phase === 2,
+  })
+    .replace(/\*/g, '')
+    .replace(/<@[^>]+>/g, '')
+    .replace(/<!subteam[^>]+>/g, '');
 
   return `<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#222;white-space:pre-line;">
-  <p style="font-size:16px;margin:0 0 12px;">${escapeHtml(submission.driver)}</p>
-  <p style="margin:0 0 16px;line-height:1.5;">
-Old Truck Number<br>${escapeHtml(submission.oldTruck)}<br><br>
-New Truck Number<br>${escapeHtml(submission.newTruck)}<br><br>
-Old Trailer Number<br>${escapeHtml(submission.oldTrailer)}<br><br>
-New Trailer Number<br>${escapeHtml(submission.newTrailer)}
-  </p>
-  <ul style="margin:0 0 16px;">${checklistHtml}</ul>
-  ${extra}
-  <p style="margin:0;">${escapeHtml(footerTeam)}</p>
+  <pre style="font-family:Arial,sans-serif;font-size:14px;">${escapeHtml(text)}</pre>
   <p style="color:#666;font-size:12px;margin-top:24px;">Submitted via /truckswitch · ${escapeHtml(meta.submittedAtIso)}</p>
 </body>
 </html>`;
@@ -102,8 +121,8 @@ New Trailer Number<br>${escapeHtml(submission.newTrailer)}
 
 function formatEmailSubject(submission, options = {}) {
   const { phase = 1 } = options;
-  const prefix = phase === 2 ? 'Unit Switch Completed' : 'Unit Switch';
-  return `${prefix} — ${submission.driver} — ${submission.newTruck}/${submission.newTrailer}`;
+  const prefix = phase === 2 ? 'TRUCK SWITCH — Completed' : 'TRUCK SWITCH';
+  return `${prefix} — ${submission.driver} — ${submission.newTruck}`;
 }
 
 function escapeHtml(text) {
@@ -117,8 +136,8 @@ function escapeHtml(text) {
 module.exports = {
   formatPhase1Message,
   formatPhase2ThreadMessage,
+  formatPhase2VerifiedMessage,
   formatEmailHtml,
   formatEmailSubject,
-  formatVehicleBlock,
-  formatChecklistLines,
+  displayTrailer,
 };

@@ -1,62 +1,41 @@
-# Two Brothers  Slack Truck Switch Bot
+# Two Brothers — Slack TRUCK SWITCH Bot
 
-Standalone Node.js app for the `/truckswitch` workflow (unit switch). No database; archive is Slack threads plus email.
+Standalone Node.js app for `/truckswitch`. No database; archive is Slack threads plus email.
 
-## Workflow B (two phases)
+## Message format
 
-1. **Phase 1  `/truckswitch`**  
-   Safety submits driver + old/new truck/trailer. Bot posts to the channel (checklist pending: `Fuel card -`, etc.) and `@safetyteam`, sends email. Message includes **Mark work completed**.
+Posts follow the **TRUCK SWITCH** template: driver, equipment details, temporary switch flag, trailers (`/` if none), required updates, optional location note, and team lines:
 
-2. **Phase 2  Mark work completed**  
-   Safety checks which systems were updated (Fuel card, Samsara, TMS). Bot replies **in the thread** with `Work Completed` and `@controlteam`, sends a second email. Parent message is updated (button removed).
+- **Fuel Card** → `@safetyteam`
+- **Samsara** → `@eldteam`
+- **TMS** → `@safetyteam`
 
-3. **Control**  
-   On the thread reply: **Confirm accuracy** or **Reject** (with reason). Status is recorded in the thread.
+## Workflow
 
-**Submit rule:** Phase 1 and phase 2 modals stay open unless **both** Slack delivery and email succeed. If email fails after a Slack post, the Slack message is rolled back.
+1. **Phase 1** — `/truckswitch` form → channel post + email. **Mark work completed** button on the message.
+2. **Phase 2** — Safety checks updated systems (Fuel Card, Samsara, TMS) → thread reply with `Updated.` / `NA` + email.
+3. **Teams** — Reply in thread (manual, like “samsara updated”).
+4. **Control** — Add a **:white_check_mark:** reaction on the phase-2 thread message (members of control allowlist if configured). Bot posts *Control verified* in the thread.
 
-Runs on **port 5002** by default.
+Slack + email must both succeed for phase 1 and 2 modals (rollback on email failure).
 
-## Setup
+## Slack app setup
 
-1. Copy `.env.example` to `.env` and fill in values.
-2. `npm install`
-3. `npm run dev` or `npm start`
+**Scopes:** `commands`, `chat:write`, `channels:history` (or `groups:history` for private channels)
 
-## Slack app configuration
+**Event Subscriptions** (for control reactions):
 
-Create a new app at [api.slack.com/apps](https://api.slack.com/apps).
+- Enable events
+- Request URL: `https://<host>/slack/events`
+- Subscribe to bot event: `reaction_added`
 
-**OAuth & Permissions  Bot Token Scopes**
-
-- `commands`
-- `chat:write`
-
-**Slash Commands**
-
-| Command        | Request URL                                       |
-|----------------|---------------------------------------------------|
-| `/truckswitch` | `https://<your-host>/slack/commands/truckswitch` |
-
-**Interactivity & Shortcuts**
-
-- Enable **Interactivity**
-- Request URL: `https://<your-host>/slack/interactions`
-
-Install the app to your workspace. Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` in `.env`.
-
-Invite the bot to the target channel and set `SLACK_CHANNEL_ID`.
-
-## Reverse proxy
-
-See [`deploy/nginx.api.twobrothersfreight.com.conf`](deploy/nginx.api.twobrothersfreight.com.conf). Optional health: `GET https://<host>/slack-health`.
+**Interactivity:** `https://<host>/slack/interactions`  
+**Slash command:** `https://<host>/slack/commands/truckswitch`
 
 ## Environment
 
-See `.env.example`. Optional allowlists (empty = everyone):
+See `.env.example`. User group IDs for `@safetyteam`, `@eldteam`, `@controlteam` mentions.
 
-- `SLACK_ALLOWED_USER_IDS`  slash command
-- `SLACK_SAFETY_ALLOWED_USER_IDS`  **Mark work completed** button
-- `SLACK_CONTROL_ALLOWED_USER_IDS`  confirm / reject
+## Run
 
-User group IDs for mentions: `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_CONTROL_TEAM_USERGROUP_ID`.
+`npm install` → `npm start` (port **5002**). See `deploy/nginx.api.twobrothersfreight.com.conf` for proxy.

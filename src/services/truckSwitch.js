@@ -2,46 +2,29 @@ const { WebClient } = require('@slack/web-api');
 const { loadConfig } = require('../config');
 const { buildTruckSwitchModal } = require('../blocks/truckSwitchModal');
 const { buildCompleteModal } = require('../blocks/completeModal');
-const { buildRejectModal } = require('../blocks/rejectModal');
 const {
   formatPhase1Message,
   formatPhase2ThreadMessage,
 } = require('../format/truckSwitchMessage');
-const {
-  ACTION_MARK_COMPLETE,
-  ACTION_CONTROL_CONFIRM,
-  ACTION_CONTROL_REJECT,
-} = require('../constants/actions');
+const { ACTION_MARK_COMPLETE } = require('../constants/actions');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
-
-function isUserAllowed(userId) {
-  const { allowedUserIds } = loadConfig().slack;
-  if (!allowedUserIds.length) return true;
-  return allowedUserIds.includes(userId);
-}
-
-function isSafetyOperator(userId) {
-  const { safetyAllowedUserIds } = loadConfig().slack;
-  if (!safetyAllowedUserIds.length) return true;
-  return safetyAllowedUserIds.includes(userId);
-}
-
-function isControlOperator(userId) {
-  const { controlAllowedUserIds } = loadConfig().slack;
-  if (!controlAllowedUserIds.length) return true;
-  return controlAllowedUserIds.includes(userId);
-}
+const {
+  isUserAllowed,
+  isSafetyOperator,
+} = require('./access');
 
 function buildMeta(submitterUserId, extra = {}) {
   const {
     safetyTeamUsergroupId,
     controlTeamUsergroupId,
+    eldTeamUsergroupId,
   } = loadConfig().slack;
   return {
     submitterUserId,
     submittedAtIso: new Date().toISOString(),
     safetyTeamUsergroupId,
     controlTeamUsergroupId,
+    eldTeamUsergroupId,
     ...extra,
   };
 }
@@ -73,54 +56,20 @@ function buildPhase1Blocks(submission, meta) {
   ];
 }
 
-function buildPhase2Blocks(submission, updateFlags, meta, { verified, rejectedBy, rejectReason } = {}) {
+function buildPhase2Blocks(submission, updateFlags, meta) {
   const text = formatPhase2ThreadMessage(submission, updateFlags, meta);
-  const blocks = [{ type: 'section', text: { type: 'mrkdwn', text } }];
-
-  if (verified) {
-    blocks.push({
+  return [
+    { type: 'section', text: { type: 'mrkdwn', text } },
+    {
       type: 'context',
       elements: [
         {
           type: 'mrkdwn',
-          text: `:white_check_mark: *Verified* by <@${verified}>`,
+          text: 'Teams: reply in thread when your part is done. Control: add :white_check_mark: reaction to verify.',
         },
       ],
-    });
-  } else if (rejectedBy) {
-    blocks.push({
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `:x: *Rejected* by <@${rejectedBy}>: ${rejectReason}`,
-        },
-      ],
-    });
-  } else {
-    blocks.push({
-      type: 'actions',
-      block_id: 'control_actions',
-      elements: [
-        {
-          type: 'button',
-          action_id: ACTION_CONTROL_CONFIRM,
-          style: 'primary',
-          text: { type: 'plain_text', text: 'Confirm accuracy' },
-          value: encodeSubmission({ submission, updateFlags }),
-        },
-        {
-          type: 'button',
-          action_id: ACTION_CONTROL_REJECT,
-          style: 'danger',
-          text: { type: 'plain_text', text: 'Reject' },
-          value: encodeSubmission({ submission, updateFlags }),
-        },
-      ],
-    });
-  }
-
-  return blocks;
+    },
+  ];
 }
 
 async function openTruckSwitchModal(triggerId) {
@@ -217,8 +166,7 @@ async function processCompleteSubmission(view, userId) {
     throw new DeliveryError('Missing thread or submission data.');
   }
 
-  const { botToken } = loadConfig().slack;
-  const client = new WebClient(botToken);
+  const client = slackClient();
   const meta = buildMeta(userId);
 
   const { parseCompleteValues } = require('../blocks/completeModal');
@@ -282,140 +230,12 @@ async function processCompleteSubmission(view, userId) {
   );
 }
 
-async function handleControlConfirmAction(payload) {
-  const userId = payload.user?.id;
-  if (!isControlOperator(userId)) {
-    return {
-      response_type: 'ephemeral',
-      text: 'Only control team members can verify.',
-    };
-  }
-
-  const action = payload.actions?.[0];
-  const channel = payload.channel?.id;
-  const messageTs = payload.message?.ts;
-  const threadTs = payload.message?.thread_ts || messageTs;
-
-  let parsed;
-  try {
-    parsed = decodeSubmission(action.value);
-  } catch {
-    return { response_type: 'ephemeral', text: 'Invalid button payload.' };
-  }
-
-  const { submission, updateFlags } = parsed;
-  const meta = buildMeta(userId);
-  const { botToken } = loadConfig().slack;
-  const client = new WebClient(botToken);
-
-  const blocks = buildPhase2Blocks(submission, updateFlags, meta, {
-    verified: userId,
-  });
-  const text = formatPhase2ThreadMessage(submission, updateFlags, meta);
-
-  await client.chat.update({
-    channel,
-    ts: messageTs,
-    text,
-    blocks,
-  });
-
-  await client.chat.postMessage({
-    channel,
-    thread_ts: threadTs,
-    text: `Verified by <@${userId}>.`,
-  });
-
-  return null;
-}
-
-async function handleControlRejectAction(payload) {
-  const userId = payload.user?.id;
-  if (!isControlOperator(userId)) {
-    return {
-      response_type: 'ephemeral',
-      text: 'Only control team members can reject.',
-    };
-  }
-
-  const action = payload.actions?.[0];
-  const channel = payload.channel?.id;
-  const messageTs = payload.message?.ts;
-  const threadTs = payload.message?.thread_ts || messageTs;
-
-  const privateMetadata = JSON.stringify({
-    channel,
-    message_ts: messageTs,
-    thread_ts: threadTs,
-    button_value: action.value,
-  });
-
-  const { botToken } = loadConfig().slack;
-  const client = new WebClient(botToken);
-  await client.views.open({
-    trigger_id: payload.trigger_id,
-    view: buildRejectModal(privateMetadata),
-  });
-
-  return null;
-}
-
-async function processRejectSubmission(view, userId) {
-  let ctx;
-  try {
-    ctx = JSON.parse(view.private_metadata || '{}');
-  } catch {
-    throw new Error('Invalid session metadata.');
-  }
-
-  const { parseRejectValues } = require('../blocks/rejectModal');
-  const { data, errors } = parseRejectValues(view.state.values);
-  if (Object.keys(errors).length) {
-    const err = new Error('Validation failed.');
-    err.validationErrors = errors;
-    throw err;
-  }
-
-  let parsed;
-  try {
-    parsed = decodeSubmission(ctx.button_value);
-  } catch {
-    throw new Error('Invalid switch data.');
-  }
-
-  const { submission, updateFlags } = parsed;
-  const meta = buildMeta(userId);
-  const { botToken } = loadConfig().slack;
-  const client = new WebClient(botToken);
-
-  const blocks = buildPhase2Blocks(submission, updateFlags, meta, {
-    rejectedBy: userId,
-    rejectReason: data.reason,
-  });
-  const text = formatPhase2ThreadMessage(submission, updateFlags, meta);
-
-  await client.chat.update({
-    channel: ctx.channel,
-    ts: ctx.message_ts,
-    text,
-    blocks,
-  });
-
-  await client.chat.postMessage({
-    channel: ctx.channel,
-    thread_ts: ctx.thread_ts,
-    text: `Rejected by <@${userId}>: ${data.reason}`,
-  });
-}
-
 module.exports = {
   DeliveryError,
   isUserAllowed,
+  isSafetyOperator,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
   handleMarkCompleteAction,
   processCompleteSubmission,
-  handleControlConfirmAction,
-  handleControlRejectAction,
-  processRejectSubmission,
 };

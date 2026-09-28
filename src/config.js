@@ -31,6 +31,7 @@ function loadConfig() {
       allowedUserIds: optionalList('SLACK_ALLOWED_USER_IDS'),
       safetyTeamUsergroupId: process.env.SLACK_SAFETY_TEAM_USERGROUP_ID?.trim() || '',
       controlTeamUsergroupId: process.env.SLACK_CONTROL_TEAM_USERGROUP_ID?.trim() || '',
+      eldTeamUsergroupId: process.env.SLACK_ELD_TEAM_USERGROUP_ID?.trim() || '',
       safetyAllowedUserIds: optionalList('SLACK_SAFETY_ALLOWED_USER_IDS'),
       controlAllowedUserIds: optionalList('SLACK_CONTROL_ALLOWED_USER_IDS'),
     },

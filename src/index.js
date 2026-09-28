@@ -1,6 +1,7 @@
 const express = require('express');
 const { loadConfigSafe } = require('./config');
 const slackRouter = require('./routes/slack');
+const eventsRouter = require('./routes/events');
 
 const configResult = loadConfigSafe();
 if (!configResult.ok) {
@@ -21,6 +22,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
+app.use('/slack/events', eventsRouter);
 app.use('/slack', slackRouter);
 
 const port = Number(process.env.PORT || 5002);
@@ -29,4 +31,5 @@ app.listen(port, () => {
   console.log(`  Health:      GET  /health`);
   console.log(`  Slash cmd:   POST /slack/commands/truckswitch`);
   console.log(`  Interactive: POST /slack/interactions`);
+  console.log(`  Events:      POST /slack/events`);
 });

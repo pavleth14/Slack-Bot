@@ -7,22 +7,13 @@ const {
 } = require('../blocks/truckSwitchModal');
 const { CALLBACK_ID: COMPLETE_CALLBACK_ID, BLOCK_IDS: COMPLETE_BLOCK_IDS } =
   require('../blocks/completeModal');
-const { CALLBACK_ID: REJECT_CALLBACK_ID, BLOCK_IDS: REJECT_BLOCK_IDS } =
-  require('../blocks/rejectModal');
-const {
-  ACTION_MARK_COMPLETE,
-  ACTION_CONTROL_CONFIRM,
-  ACTION_CONTROL_REJECT,
-} = require('../constants/actions');
+const { ACTION_MARK_COMPLETE } = require('../constants/actions');
 const {
   isUserAllowed,
   openTruckSwitchModal,
   processTruckSwitchSubmission,
   handleMarkCompleteAction,
   processCompleteSubmission,
-  handleControlConfirmAction,
-  handleControlRejectAction,
-  processRejectSubmission,
   DeliveryError,
 } = require('../services/truckSwitch');
 
@@ -80,10 +71,6 @@ router.post('/interactions', async (req, res) => {
       let ephemeral = null;
       if (actionId === ACTION_MARK_COMPLETE) {
         ephemeral = await handleMarkCompleteAction(payload);
-      } else if (actionId === ACTION_CONTROL_CONFIRM) {
-        ephemeral = await handleControlConfirmAction(payload);
-      } else if (actionId === ACTION_CONTROL_REJECT) {
-        ephemeral = await handleControlRejectAction(payload);
       }
       if (ephemeral) {
         return res.json(ephemeral);
@@ -156,27 +143,6 @@ router.post('/interactions', async (req, res) => {
           response_action: 'errors',
           errors: {
             [COMPLETE_BLOCK_IDS.updates]: deliveryErrorMessage(err),
-          },
-        });
-      }
-    }
-
-    if (callbackId === REJECT_CALLBACK_ID) {
-      try {
-        await processRejectSubmission(payload.view, userId);
-        return res.json({ response_action: 'clear' });
-      } catch (err) {
-        if (err.validationErrors) {
-          return res.json({
-            response_action: 'errors',
-            errors: err.validationErrors,
-          });
-        }
-        console.error('[interactions] reject failed:', err.message);
-        return res.json({
-          response_action: 'errors',
-          errors: {
-            [REJECT_BLOCK_IDS.reason]: err.message || 'Could not save rejection.',
           },
         });
       }
