@@ -18,8 +18,15 @@ const {
 } = require('./interactivePost');
 const {
   CHECK_ACTIONS,
+  REVERT_ACTIONS,
   ACTION_TO_SYSTEM,
+  ACTION_TO_SYSTEM_REVERT,
 } = require('../constants/actions');
+const { buildConfirmModal, parsePrivateMetadata } = require('../blocks/truckSwitchConfirmModal');
+const {
+  canUserActOnSystem,
+  teamLabelForSystem,
+} = require('./systemTeamAccess');
 
 function buildMeta(submitterUserId, extra = {}) {
   const { safetyTeamUsergroupId, maintenanceTeamUsergroupId } = loadConfig().slack;
@@ -160,52 +167,33 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
   });
 }
 
-async function handleSystemCheckboxAction(payload) {
-  const action = payload.actions?.[0];
-  const actionId = action?.action_id;
+function buildStateMeta(state, actorUserId) {
+  return buildMeta(state.submissionMeta?.submitterUserId || actorUserId, {
+    submittedAtIso:
+      state.submissionMeta?.submittedAtIso || new Date().toISOString(),
+  });
+}
 
-  if (!CHECK_ACTIONS.has(actionId)) {
-    return null;
-  }
-
-  const selected = action.selected_options || [];
-  if (!selected.length) {
-    return { response_type: 'ephemeral', text: 'Select the checkbox to mark updated.' };
-  }
-
-  const userId = payload.user?.id;
+async function postEphemeral(client, payload, text) {
   const channel = payload.channel?.id;
-  const messageTs = payload.message?.ts;
-
-  const state = parsePostMetadata(payload.message);
-  if (!state) {
-    return { response_type: 'ephemeral', text: 'Could not read switch state.' };
+  const user = payload.user?.id;
+  if (!channel || !user) {
+    return;
   }
-
-  const systemKey = ACTION_TO_SYSTEM[actionId];
-  if (state.checks[systemKey]) {
-    return {
-      response_type: 'ephemeral',
-      text: 'This system is already marked UPDATED.',
-    };
+  try {
+    await client.chat.postEphemeral({ channel, user, text });
+  } catch (err) {
+    console.error('[truckSwitch] postEphemeral failed:', err.message);
   }
+}
 
-  state.checks[systemKey] = userId;
+async function syncPostMessage(client, channel, messageTs, state) {
   const submission = state.submission;
-  const meta = buildMeta(
-    state.submissionMeta?.submitterUserId || userId,
-    {
-      submittedAtIso:
-        state.submissionMeta?.submittedAtIso || new Date().toISOString(),
-    }
-  );
-
-  const client = slackClient();
+  const meta = buildStateMeta(state, state.submissionMeta?.submitterUserId || '');
   const metadata = {
     event_type: 'truck_switch_v1',
     event_payload: state,
   };
-
   await client.chat.update({
     channel,
     ts: messageTs,
@@ -213,38 +201,229 @@ async function handleSystemCheckboxAction(payload) {
     blocks: buildInteractiveBlocks(submission, meta, state),
     metadata,
   });
+}
 
-  if (allSystemsUpdated(state.checks) && !state.workCompleteMailSent) {
-    if (state.emailMessageId && state.emailSubject) {
-      try {
-        const replySubject = /^Re:/i.test(state.emailSubject)
-          ? state.emailSubject
-          : `Re: ${state.emailSubject}`;
-        const replyResult = await sendTruckSwitchReplyEmail(submission, meta, {
-          inReplyTo: state.emailMessageId,
-          references: state.emailMessageId,
-          subject: replySubject,
-          checks: state.checks,
-        });
-        if (!replyResult.sent) {
-          console.error('[truckSwitch] work-complete reply email failed:', replyResult.reason);
-        } else {
-          state.workCompleteMailSent = true;
-          await client.chat.update({
-            channel,
-            ts: messageTs,
-            text: buildPostFallbackText(submission, meta, state),
-            blocks: buildInteractiveBlocks(submission, meta, state),
-            metadata: { event_type: 'truck_switch_v1', event_payload: state },
-          });
-        }
-      } catch (err) {
-        console.error('[truckSwitch] work-complete reply email failed:', err.message);
-      }
-    }
+async function maybeSendWorkCompleteEmail(client, channel, messageTs, state) {
+  if (!allSystemsUpdated(state.checks) || state.workCompleteMailSent) {
+    return;
+  }
+  if (!state.emailMessageId || !state.emailSubject) {
+    return;
   }
 
-  return null;
+  const submission = state.submission;
+  const meta = buildStateMeta(state, state.submissionMeta?.submitterUserId || '');
+
+  try {
+    const replySubject = /^Re:/i.test(state.emailSubject)
+      ? state.emailSubject
+      : `Re: ${state.emailSubject}`;
+    const replyResult = await sendTruckSwitchReplyEmail(submission, meta, {
+      inReplyTo: state.emailMessageId,
+      references: state.emailMessageId,
+      subject: replySubject,
+      checks: state.checks,
+    });
+    if (!replyResult.sent) {
+      console.error('[truckSwitch] work-complete reply email failed:', replyResult.reason);
+      return;
+    }
+    state.workCompleteMailSent = true;
+    await syncPostMessage(client, channel, messageTs, state);
+  } catch (err) {
+    console.error('[truckSwitch] work-complete reply email failed:', err.message);
+  }
+}
+
+async function openSystemConfirmModal(client, triggerId, params) {
+  await client.views.open({
+    trigger_id: triggerId,
+    view: buildConfirmModal(params),
+  });
+}
+
+async function handleSystemCheckboxAction(payload) {
+  const action = payload.actions?.[0];
+  const actionId = action?.action_id;
+
+  if (!CHECK_ACTIONS.has(actionId)) {
+    return;
+  }
+
+  const selected = action.selected_options || [];
+  const client = slackClient();
+  const userId = payload.user?.id;
+  const channel = payload.channel?.id;
+  const messageTs = payload.message?.ts;
+  const triggerId = payload.trigger_id;
+
+  if (!selected.length) {
+    return;
+  }
+
+  const state = parsePostMetadata(payload.message);
+  if (!state) {
+    await postEphemeral(client, payload, 'Could not read switch state.');
+    return;
+  }
+
+  const systemKey = ACTION_TO_SYSTEM[actionId];
+  if (state.checks[systemKey]) {
+    await syncPostMessage(client, channel, messageTs, state);
+    await postEphemeral(client, payload, 'This system is already marked UPDATED.');
+    return;
+  }
+
+  if (!(await canUserActOnSystem(userId, systemKey, client))) {
+    await syncPostMessage(client, channel, messageTs, state);
+    await postEphemeral(
+      client,
+      payload,
+      `Only ${teamLabelForSystem(systemKey)} can mark this system updated.`
+    );
+    return;
+  }
+
+  if (!triggerId) {
+    await syncPostMessage(client, channel, messageTs, state);
+    await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
+    return;
+  }
+
+  try {
+    await openSystemConfirmModal(client, triggerId, {
+      channel,
+      messageTs,
+      systemKey,
+      intent: 'check',
+      actorUserId: userId,
+    });
+  } catch (err) {
+    console.error('[truckSwitch] confirm modal open failed:', err.message);
+    await syncPostMessage(client, channel, messageTs, state);
+    await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
+    return;
+  }
+
+  await syncPostMessage(client, channel, messageTs, state);
+}
+
+async function handleSystemRevertAction(payload) {
+  const action = payload.actions?.[0];
+  const actionId = action?.action_id;
+
+  if (!REVERT_ACTIONS.has(actionId)) {
+    return;
+  }
+
+  const client = slackClient();
+  const userId = payload.user?.id;
+  const channel = payload.channel?.id;
+  const messageTs = payload.message?.ts;
+  const triggerId = payload.trigger_id;
+
+  const state = parsePostMetadata(payload.message);
+  if (!state) {
+    await postEphemeral(client, payload, 'Could not read switch state.');
+    return;
+  }
+
+  const systemKey = ACTION_TO_SYSTEM_REVERT[actionId];
+  if (!state.checks[systemKey]) {
+    await postEphemeral(client, payload, 'This system is not marked UPDATED.');
+    return;
+  }
+
+  if (!(await canUserActOnSystem(userId, systemKey, client))) {
+    await postEphemeral(
+      client,
+      payload,
+      `Only ${teamLabelForSystem(systemKey)} can revert this system.`
+    );
+    return;
+  }
+
+  if (!triggerId) {
+    await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
+    return;
+  }
+
+  try {
+    await openSystemConfirmModal(client, triggerId, {
+      channel,
+      messageTs,
+      systemKey,
+      intent: 'revert',
+      actorUserId: userId,
+    });
+  } catch (err) {
+    console.error('[truckSwitch] revert confirm modal open failed:', err.message);
+    await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
+  }
+}
+
+async function handleTruckSwitchConfirmSubmission(payload) {
+  const userId = payload.user?.id;
+  const meta = parsePrivateMetadata(payload.view?.private_metadata);
+  if (!meta) {
+    return { ok: false, error: 'Invalid confirmation data.' };
+  }
+
+  if (meta.actorUserId && meta.actorUserId !== userId) {
+    return { ok: false, error: 'Confirmation must be completed by the same user.' };
+  }
+
+  const client = slackClient();
+  const { channel, messageTs, systemKey, intent } = meta;
+
+  if (!(await canUserActOnSystem(userId, systemKey, client))) {
+    return {
+      ok: false,
+      error: `Only ${teamLabelForSystem(systemKey)} can perform this action.`,
+    };
+  }
+
+  let history;
+  try {
+    history = await client.conversations.history({
+      channel,
+      latest: messageTs,
+      oldest: messageTs,
+      inclusive: true,
+      limit: 1,
+    });
+  } catch (err) {
+    console.error('[truckSwitch] fetch message failed:', err.message);
+    return { ok: false, error: 'Could not load the truck switch post.' };
+  }
+
+  const message = history.messages?.[0];
+  const state = parsePostMetadata(message);
+  if (!state) {
+    return { ok: false, error: 'Could not read switch state.' };
+  }
+
+  if (intent === 'check') {
+    if (state.checks[systemKey]) {
+      return { ok: false, error: 'This system is already marked UPDATED.' };
+    }
+    state.checks[systemKey] = userId;
+  } else if (intent === 'revert') {
+    if (!state.checks[systemKey]) {
+      return { ok: false, error: 'This system is not marked UPDATED.' };
+    }
+    state.checks[systemKey] = null;
+    if (!allSystemsUpdated(state.checks)) {
+      state.workCompleteMailSent = false;
+    }
+  } else {
+    return { ok: false, error: 'Unknown action.' };
+  }
+
+  await syncPostMessage(client, channel, messageTs, state);
+  await maybeSendWorkCompleteEmail(client, channel, messageTs, state);
+
+  return { ok: true };
 }
 
 module.exports = {
@@ -255,4 +434,6 @@ module.exports = {
   processTruckSwitchSubmission,
   notifySubmissionFailed,
   handleSystemCheckboxAction,
+  handleSystemRevertAction,
+  handleTruckSwitchConfirmSubmission,
 };

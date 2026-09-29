@@ -11,8 +11,8 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 ## Workflow
 
 1. Submit form → post in `SLACK_CHANNEL_ID` + initial email. Optional **attachments** (PDF/images) go to **email** and a **thread reply** on the post.
-2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each row has a checkbox.
-3. On check → `chat.update` → `UPDATED` + context line *Checked by @user* (visible on the row; Slack shows the user on mention).
+2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each row has a checkbox (only that team may check/revert).
+3. Checkbox or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** cancels.
 4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
 5. Long **thread replies** remain manual.
 
@@ -20,7 +20,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Slack app
 
-- **Scopes:** `commands`, `chat:write`. For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
+- **Scopes:** `commands`, `chat:write`, `usergroups:read` (team check for Fuel/TMS/Samsara), `channels:history` (read post state on confirm). For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
 - **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`
 

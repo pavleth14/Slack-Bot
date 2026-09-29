@@ -10,7 +10,11 @@ const {
   BLOCK_IDS: ACCIDENT_BLOCK_IDS,
   parseSubmissionValues: parseAccidentSubmissionValues,
 } = require('../blocks/roadAccidentModal');
-const { CHECK_ACTIONS } = require('../constants/actions');
+const { CHECK_ACTIONS, REVERT_ACTIONS } = require('../constants/actions');
+const {
+  CONFIRM_CALLBACK_ID,
+  CONFIRM_BLOCK_ID,
+} = require('../blocks/truckSwitchConfirmModal');
 const {
   isUserAllowed,
   openTruckSwitchModal,
@@ -18,6 +22,8 @@ const {
   processTruckSwitchSubmission,
   notifySubmissionFailed,
   handleSystemCheckboxAction,
+  handleSystemRevertAction,
+  handleTruckSwitchConfirmSubmission,
 } = require('../services/truckSwitch');
 const {
   openRoadAccidentModal,
@@ -94,7 +100,36 @@ router.post('/interactions', async (req, res) => {
       });
       return;
     }
+    if (REVERT_ACTIONS.has(actionId)) {
+      res.status(200).send('');
+      handleSystemRevertAction(payload).catch((err) => {
+        console.error('[interactions] revert failed:', err.message);
+      });
+      return;
+    }
     return res.status(200).send('');
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    payload.view?.callback_id === CONFIRM_CALLBACK_ID
+  ) {
+    try {
+      const result = await handleTruckSwitchConfirmSubmission(payload);
+      if (!result.ok) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [CONFIRM_BLOCK_ID]: result.error || 'Action failed.' },
+        });
+      }
+      return res.json({ response_action: 'clear' });
+    } catch (err) {
+      console.error('[interactions] confirm failed:', err.message);
+      return res.json({
+        response_action: 'errors',
+        errors: { [CONFIRM_BLOCK_ID]: err.message || 'Action failed.' },
+      });
+    }
   }
 
   if (payload.type === 'view_submission' && payload.view?.callback_id === CALLBACK_ID) {

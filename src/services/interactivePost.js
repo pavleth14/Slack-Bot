@@ -7,7 +7,16 @@ const {
   ACTION_CHECK_FUEL,
   ACTION_CHECK_SAMSARA,
   ACTION_CHECK_TMS,
+  ACTION_REVERT_FUEL,
+  ACTION_REVERT_SAMSARA,
+  ACTION_REVERT_TMS,
 } = require('../constants/actions');
+
+const REVERT_ACTION_BY_SYSTEM = {
+  fuel: ACTION_REVERT_FUEL,
+  samsara: ACTION_REVERT_SAMSARA,
+  tms: ACTION_REVERT_TMS,
+};
 
 const METADATA_EVENT = 'truck_switch_v1';
 
@@ -106,6 +115,13 @@ function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) 
 
   if (!checkedBy) {
     section.accessory = buildCheckboxAccessory(actionId, checkboxLabel);
+  } else {
+    section.accessory = {
+      type: 'button',
+      action_id: REVERT_ACTION_BY_SYSTEM[systemKey],
+      text: { type: 'plain_text', text: 'Revert' },
+      value: systemKey,
+    };
   }
 
   blocks.push(section);

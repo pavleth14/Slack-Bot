@@ -36,6 +36,7 @@ function loadConfig() {
         process.env.SLACK_ELD_TEAM_USERGROUP_ID?.trim() ||
         '',
       safetyAllowedUserIds: optionalList('SLACK_SAFETY_ALLOWED_USER_IDS'),
+      maintenanceAllowedUserIds: optionalList('SLACK_MAINTENANCE_ALLOWED_USER_IDS'),
       controlAllowedUserIds: optionalList('SLACK_CONTROL_ALLOWED_USER_IDS'),
       /** file_input in modal requires files:read (+ files:write for bot upload). Set false if modal will not open until scopes are added. */
       enableModalFileUpload: process.env.SLACK_ENABLE_MODAL_FILES !== 'false',
