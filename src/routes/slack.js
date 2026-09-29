@@ -21,7 +21,7 @@ const {
   formatViewsOpenError,
   processTruckSwitchSubmission,
   notifySubmissionFailed,
-  handleSystemCheckboxAction,
+  handleSystemMarkAction,
   handleSystemRevertAction,
   handleTruckSwitchConfirmSubmission,
 } = require('../services/truckSwitch');
@@ -93,19 +93,17 @@ router.post('/interactions', async (req, res) => {
 
   if (payload.type === 'block_actions') {
     const actionId = payload.actions?.[0]?.action_id;
-    if (CHECK_ACTIONS.has(actionId)) {
-      res.status(200).send('');
-      handleSystemCheckboxAction(payload).catch((err) => {
-        console.error('[interactions] checkbox failed:', err.message);
-      });
-      return;
-    }
-    if (REVERT_ACTIONS.has(actionId)) {
-      res.status(200).send('');
-      handleSystemRevertAction(payload).catch((err) => {
-        console.error('[interactions] revert failed:', err.message);
-      });
-      return;
+    if (CHECK_ACTIONS.has(actionId) || REVERT_ACTIONS.has(actionId)) {
+      try {
+        if (CHECK_ACTIONS.has(actionId)) {
+          await handleSystemMarkAction(payload);
+        } else {
+          await handleSystemRevertAction(payload);
+        }
+      } catch (err) {
+        console.error('[interactions] mark/revert failed:', err.message, err.data || '');
+      }
+      return res.status(200).send('');
     }
     return res.status(200).send('');
   }

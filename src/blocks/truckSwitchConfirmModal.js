@@ -7,13 +7,21 @@ const SYSTEM_LABELS = {
   tms: 'TMS',
 };
 
-function buildPrivateMetadata({ channel, messageTs, systemKey, intent, actorUserId }) {
+function buildPrivateMetadata({
+  channel,
+  messageTs,
+  systemKey,
+  intent,
+  actorUserId,
+  postState,
+}) {
   return JSON.stringify({
     channel,
     messageTs,
     systemKey,
     intent,
     actorUserId,
+    postState,
   });
 }
 
@@ -32,7 +40,14 @@ function parsePrivateMetadata(raw) {
   }
 }
 
-function buildConfirmModal({ channel, messageTs, systemKey, intent, actorUserId }) {
+function buildConfirmModal({
+  channel,
+  messageTs,
+  systemKey,
+  intent,
+  actorUserId,
+  postState,
+}) {
   const label = SYSTEM_LABELS[systemKey] || systemKey;
   let body;
   if (intent === 'revert') {
@@ -50,6 +65,7 @@ function buildConfirmModal({ channel, messageTs, systemKey, intent, actorUserId 
       systemKey,
       intent,
       actorUserId,
+      postState,
     }),
     title: { type: 'plain_text', text: 'Are you sure?' },
     submit: { type: 'plain_text', text: 'Yes' },

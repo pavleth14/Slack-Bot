@@ -11,8 +11,8 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 ## Workflow
 
 1. Submit form → post in `SLACK_CHANNEL_ID` + initial email. Optional **attachments** (PDF/images) go to **email** and a **thread reply** on the post.
-2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each row has a checkbox (only that team may check/revert).
-3. Checkbox or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** cancels.
+2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each pending row has **Mark updated** (only that team). Updated rows show **Revert**.
+3. **Mark updated** or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** closes the modal (post unchanged).
 4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
 5. Long **thread replies** remain manual.
 

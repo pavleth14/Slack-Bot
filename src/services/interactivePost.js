@@ -49,16 +49,12 @@ function allSystemsUpdated(checks) {
   return checks.fuel && checks.samsara && checks.tms;
 }
 
-function buildCheckboxAccessory(actionId, label) {
+function buildMarkUpdatedButton(actionId, label) {
   return {
-    type: 'checkboxes',
+    type: 'button',
     action_id: actionId,
-    options: [
-      {
-        text: { type: 'plain_text', text: label },
-        value: 'checked',
-      },
-    ],
+    text: { type: 'plain_text', text: label },
+    value: 'mark_updated',
   };
 }
 
@@ -114,7 +110,7 @@ function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) 
   };
 
   if (!checkedBy) {
-    section.accessory = buildCheckboxAccessory(actionId, checkboxLabel);
+    section.accessory = buildMarkUpdatedButton(actionId, checkboxLabel);
   } else {
     section.accessory = {
       type: 'button',

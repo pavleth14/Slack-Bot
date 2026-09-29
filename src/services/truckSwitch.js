@@ -242,7 +242,18 @@ async function openSystemConfirmModal(client, triggerId, params) {
   });
 }
 
-async function handleSystemCheckboxAction(payload) {
+function snapshotPostState(state) {
+  return {
+    submission: state.submission,
+    checks: { ...state.checks },
+    emailMessageId: state.emailMessageId,
+    emailSubject: state.emailSubject,
+    workCompleteMailSent: state.workCompleteMailSent,
+    submissionMeta: state.submissionMeta,
+  };
+}
+
+async function handleSystemMarkAction(payload) {
   const action = payload.actions?.[0];
   const actionId = action?.action_id;
 
@@ -250,16 +261,11 @@ async function handleSystemCheckboxAction(payload) {
     return;
   }
 
-  const selected = action.selected_options || [];
   const client = slackClient();
   const userId = payload.user?.id;
   const channel = payload.channel?.id;
   const messageTs = payload.message?.ts;
   const triggerId = payload.trigger_id;
-
-  if (!selected.length) {
-    return;
-  }
 
   const state = parsePostMetadata(payload.message);
   if (!state) {
@@ -269,13 +275,11 @@ async function handleSystemCheckboxAction(payload) {
 
   const systemKey = ACTION_TO_SYSTEM[actionId];
   if (state.checks[systemKey]) {
-    await syncPostMessage(client, channel, messageTs, state);
     await postEphemeral(client, payload, 'This system is already marked UPDATED.');
     return;
   }
 
   if (!(await canUserActOnSystem(userId, systemKey, client))) {
-    await syncPostMessage(client, channel, messageTs, state);
     await postEphemeral(
       client,
       payload,
@@ -285,8 +289,11 @@ async function handleSystemCheckboxAction(payload) {
   }
 
   if (!triggerId) {
-    await syncPostMessage(client, channel, messageTs, state);
-    await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
+    await postEphemeral(
+      client,
+      payload,
+      'Could not open confirmation (missing trigger). Try again.'
+    );
     return;
   }
 
@@ -297,15 +304,12 @@ async function handleSystemCheckboxAction(payload) {
       systemKey,
       intent: 'check',
       actorUserId: userId,
+      postState: snapshotPostState(state),
     });
   } catch (err) {
-    console.error('[truckSwitch] confirm modal open failed:', err.message);
-    await syncPostMessage(client, channel, messageTs, state);
+    console.error('[truckSwitch] confirm modal open failed:', err.message, err.data || '');
     await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
-    return;
   }
-
-  await syncPostMessage(client, channel, messageTs, state);
 }
 
 async function handleSystemRevertAction(payload) {
@@ -355,9 +359,10 @@ async function handleSystemRevertAction(payload) {
       systemKey,
       intent: 'revert',
       actorUserId: userId,
+      postState: snapshotPostState(state),
     });
   } catch (err) {
-    console.error('[truckSwitch] revert confirm modal open failed:', err.message);
+    console.error('[truckSwitch] revert confirm modal open failed:', err.message, err.data || '');
     await postEphemeral(client, payload, 'Could not open confirmation. Try again.');
   }
 }
@@ -383,22 +388,28 @@ async function handleTruckSwitchConfirmSubmission(payload) {
     };
   }
 
-  let history;
+  let state = null;
+
   try {
-    history = await client.conversations.history({
+    const history = await client.conversations.history({
       channel,
       latest: messageTs,
       oldest: messageTs,
       inclusive: true,
       limit: 1,
     });
+    state = parsePostMetadata(history.messages?.[0]);
   } catch (err) {
     console.error('[truckSwitch] fetch message failed:', err.message);
-    return { ok: false, error: 'Could not load the truck switch post.' };
   }
 
-  const message = history.messages?.[0];
-  const state = parsePostMetadata(message);
+  if (!state && meta.postState?.submission) {
+    state = {
+      ...meta.postState,
+      checks: { ...meta.postState.checks },
+    };
+  }
+
   if (!state) {
     return { ok: false, error: 'Could not read switch state.' };
   }
@@ -433,7 +444,7 @@ module.exports = {
   formatViewsOpenError,
   processTruckSwitchSubmission,
   notifySubmissionFailed,
-  handleSystemCheckboxAction,
+  handleSystemMarkAction,
   handleSystemRevertAction,
   handleTruckSwitchConfirmSubmission,
 };
