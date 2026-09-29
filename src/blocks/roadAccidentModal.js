@@ -43,7 +43,7 @@ function buildAttachmentBlock() {
     type: 'input',
     block_id: BLOCK_IDS.attachments,
     optional: true,
-    label: { type: 'plain_text', text: 'Photos (optional)' },
+    label: { type: 'plain_text', text: 'Photos or PDF (optional)' },
     hint: {
       type: 'plain_text',
       text: 'Images or PDFs, up to 10 files.',
