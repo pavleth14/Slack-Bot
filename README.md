@@ -1,6 +1,12 @@
-# Two Brothers — Slack TRUCK SWITCH Bot
+# Two Brothers — Slack Bot
 
-`/truckswitch` → modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS** via **checkboxes on the post**; the message updates with **UPDATED** and *Checked by @user*. When all three are checked: **Work Completed** :white_check_mark: and a **reply email** threads off the first message.
+## `/truckswitch`
+
+Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS** via **checkboxes on the post**; the message updates with **UPDATED** and *Checked by @user*. When all three are checked: **Work Completed** :white_check_mark: and a **reply email** threads off the first message.
+
+## `/accident`
+
+**ROAD ACCIDENT REPORT** modal (date + time pickers, incident details, optional photos) → same `SLACK_CHANNEL_ID` + email. Post includes `@safetyteam` *Post accident drug test required? Reply in this thread*, then `<!here>`. Photos go to email and a thread reply.
 
 ## Workflow
 
@@ -16,7 +22,7 @@ No database. Message state lives in Slack **message metadata**.
 
 - **Scopes:** `commands`, `chat:write`. For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
-- **Slash command:** `https://<host>/slack/commands/truckswitch`
+- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`
 
 ## Environment
 

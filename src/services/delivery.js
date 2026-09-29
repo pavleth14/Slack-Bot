@@ -33,7 +33,8 @@ async function deliverSlackAndEmail(slackPost, submission, meta, mailOptions = {
   }
 
   try {
-    const mailResult = await sendTruckSwitchEmail(submission, meta, mailOptions);
+    const sendEmail = mailOptions.sendEmail || sendTruckSwitchEmail;
+    const mailResult = await sendEmail(submission, meta, mailOptions);
     if (!mailResult.sent) {
       throw new DeliveryError(
         `Email was not sent (${mailResult.reason || 'unknown'}).`,

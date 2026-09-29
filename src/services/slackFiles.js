@@ -63,7 +63,13 @@ async function downloadSlackFileBuffers(client, fileRefs) {
  * @param {string} threadTs
  * @param {{ filename: string, content: Buffer }[]} files
  */
-async function uploadFilesToThread(client, channelId, threadTs, files) {
+async function uploadFilesToThread(
+  client,
+  channelId,
+  threadTs,
+  files,
+  initialComment = 'Attachments'
+) {
   if (!files?.length) {
     return;
   }
@@ -71,7 +77,7 @@ async function uploadFilesToThread(client, channelId, threadTs, files) {
   await client.files.uploadV2({
     channel_id: channelId,
     thread_ts: threadTs,
-    initial_comment: 'Attachments from truck switch form',
+    initial_comment: initialComment,
     file_uploads: files.map((f) => ({
       file: f.content,
       filename: f.filename,

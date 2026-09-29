@@ -5,6 +5,11 @@ const {
   BLOCK_IDS,
   parseSubmissionValues,
 } = require('../blocks/truckSwitchModal');
+const {
+  CALLBACK_ID: ACCIDENT_CALLBACK_ID,
+  BLOCK_IDS: ACCIDENT_BLOCK_IDS,
+  parseSubmissionValues: parseAccidentSubmissionValues,
+} = require('../blocks/roadAccidentModal');
 const { CHECK_ACTIONS } = require('../constants/actions');
 const {
   isUserAllowed,
@@ -14,6 +19,11 @@ const {
   notifySubmissionFailed,
   handleSystemCheckboxAction,
 } = require('../services/truckSwitch');
+const {
+  openRoadAccidentModal,
+  processRoadAccidentSubmission,
+  notifyAccidentSubmissionFailed,
+} = require('../services/roadAccident');
 
 const router = express.Router();
 
@@ -28,7 +38,7 @@ router.use(
 
 router.use(verifySlackSignature);
 
-router.post('/commands/truckswitch', async (req, res) => {
+async function handleSlashOpenModal(req, res, { openModal, commandLabel }) {
   const userId = req.body.user_id;
   const triggerId = req.body.trigger_id;
 
@@ -37,20 +47,34 @@ router.post('/commands/truckswitch', async (req, res) => {
   }
 
   try {
-    await openTruckSwitchModal(triggerId);
+    await openModal(triggerId);
     return res.status(200).send('');
   } catch (err) {
     const detail = formatViewsOpenError(err);
-    console.error('[slash/truckswitch] views.open failed:', detail, err.data || '');
+    console.error(`[slash/${commandLabel}] views.open failed:`, detail, err.data || '');
     const hint =
       detail === 'missing_scope' || /file_input|files:read/i.test(detail)
         ? ' Add bot scopes files:read and files:write in the Slack app, reinstall to the workspace, then restart the bot. Until then set SLACK_ENABLE_MODAL_FILES=false in .env.'
         : '';
     return res.status(200).json({
       response_type: 'ephemeral',
-      text: `Could not open the truck switch form (${detail}).${hint}`,
+      text: `Could not open the form (${detail}).${hint}`,
     });
   }
+}
+
+router.post('/commands/truckswitch', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openTruckSwitchModal,
+    commandLabel: 'truckswitch',
+  });
+});
+
+router.post('/commands/accident', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openRoadAccidentModal,
+    commandLabel: 'accident',
+  });
 });
 
 router.post('/interactions', async (req, res) => {
@@ -94,6 +118,36 @@ router.post('/interactions', async (req, res) => {
     processTruckSwitchSubmission(data, userId).catch((err) => {
       console.error('[interactions] phase1 failed:', err.message);
       notifySubmissionFailed(userId, err).catch(() => {});
+    });
+    return;
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    payload.view?.callback_id === ACCIDENT_CALLBACK_ID
+  ) {
+    const userId = payload.user?.id;
+
+    if (!isUserAllowed(userId)) {
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [ACCIDENT_BLOCK_IDS.driver]: 'You are not allowed to submit this form.',
+        },
+      });
+    }
+
+    const { data, errors } = parseAccidentSubmissionValues(
+      payload.view.state.values
+    );
+    if (Object.keys(errors).length > 0) {
+      return res.json({ response_action: 'errors', errors });
+    }
+
+    res.json({ response_action: 'clear' });
+    processRoadAccidentSubmission(data, userId).catch((err) => {
+      console.error('[interactions] road accident failed:', err.message);
+      notifyAccidentSubmissionFailed(userId, err).catch(() => {});
     });
     return;
   }

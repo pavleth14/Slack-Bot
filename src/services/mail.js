@@ -4,6 +4,10 @@ const {
   formatEmailHtml,
   formatEmailSubject,
 } = require('../format/truckSwitchMessage');
+const {
+  formatEmailHtml: formatAccidentEmailHtml,
+  formatEmailSubject: formatAccidentEmailSubject,
+} = require('../format/roadAccidentMessage');
 
 function createTransport() {
   const { mail } = loadConfig();
@@ -83,4 +87,43 @@ async function sendTruckSwitchReplyEmail(
   return { sent: true, messageId: info.messageId };
 }
 
-module.exports = { sendTruckSwitchEmail, sendTruckSwitchReplyEmail };
+async function sendRoadAccidentEmail(submission, meta, options = {}) {
+  const { mail } = loadConfig();
+  if (!mail.departmentEmails.length) {
+    console.warn('[mail] DEPARTMENT_EMAILS is empty; skipping email.');
+    return { sent: false, reason: 'no_recipients' };
+  }
+
+  const transport = createTransport();
+  if (!transport) {
+    console.warn('[mail] SMTP_HOST not configured; skipping email.');
+    return { sent: false, reason: 'no_smtp' };
+  }
+
+  const subject = formatAccidentEmailSubject(submission);
+  const mailAttachments = (options.attachments || []).map((a) => ({
+    filename: a.filename,
+    content: a.content,
+    contentType: a.contentType,
+  }));
+
+  const info = await transport.sendMail({
+    from: mail.from,
+    to: mail.departmentEmails.join(','),
+    subject,
+    html: formatAccidentEmailHtml(submission, meta),
+    attachments: mailAttachments.length ? mailAttachments : undefined,
+  });
+
+  return {
+    sent: true,
+    messageId: info.messageId,
+    subject,
+  };
+}
+
+module.exports = {
+  sendTruckSwitchEmail,
+  sendTruckSwitchReplyEmail,
+  sendRoadAccidentEmail,
+};

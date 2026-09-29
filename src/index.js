@@ -28,5 +28,6 @@ app.listen(port, () => {
   console.log(`Slack bot listening on http://localhost:${port}`);
   console.log(`  Health:      GET  /health`);
   console.log(`  Slash cmd:   POST /slack/commands/truckswitch`);
+  console.log(`  Slash cmd:   POST /slack/commands/accident`);
   console.log(`  Interactive: POST /slack/interactions`);
 });

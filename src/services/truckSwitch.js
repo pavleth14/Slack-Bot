@@ -133,7 +133,13 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
   );
 
   try {
-    await uploadFilesToThread(client, postRef.channel, postRef.ts, fileAttachments);
+    await uploadFilesToThread(
+      client,
+      postRef.channel,
+      postRef.ts,
+      fileAttachments,
+      'Attachments from truck switch form'
+    );
   } catch (err) {
     console.error('[truckSwitch] thread file upload failed:', err.message);
   }
