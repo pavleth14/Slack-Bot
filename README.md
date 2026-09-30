@@ -16,6 +16,14 @@ Modal: date, confirmation number, truck, driver name, optional notes → **`SLAC
 
 Notes on the line(s) below under **Notes:**.
 
+## `/trailer-switch`
+
+Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → channel + email (same `MAIL_ENABLED` behavior as `/loads`). Default channel: `SLACK_CHANNEL_ID` (e.g. `#bot-test`); override with `SLACK_TRAILER_SWITCH_CHANNEL_ID`.
+
+Post body is one sentence, e.g.:
+
+`Truck 223 Samih picked up loaded trailer #S532404 from Justice Yard IL Load# 25372`
+
 ## Workflow
 
 1. Submit form → post in `SLACK_TRUCKSWITCH_CHANNEL_ID` (+ email when `MAIL_ENABLED=true`). Optional **attachments** go to **email** and a **thread reply** on the post.
@@ -30,11 +38,11 @@ No database. Message state lives in Slack **message metadata**.
 
 - **Scopes:** `commands`, `chat:write`, `usergroups:read` (team check for Fuel/TMS/Samsara), `channels:history` (read post state on confirm). For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
-- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`
+- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`, `https://<host>/slack/commands/trailer-switch`
 
 ## Environment
 
-- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`)
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`, default `/trailer-switch`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); optional `SLACK_TRAILER_SWITCH_CHANNEL_ID`
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)
