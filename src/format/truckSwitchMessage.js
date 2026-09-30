@@ -1,4 +1,8 @@
 const { formatSubmittedByPrefix } = require('./submittedBy');
+const { isSystemChecked } = require('../util/truckSwitchChecks');
+
+const CHECK_DISPLAY_TIMEZONE =
+  process.env.APP_TIMEZONE?.trim() || 'America/Chicago';
 
 function formatUsergroupMention(usergroupId, fallbackLabel) {
   if (usergroupId) {
@@ -94,7 +98,17 @@ function formatWorkCompletedLine(workDone) {
   return '*Work Completed:* :x:';
 }
 
-const { isSystemChecked } = require('../util/truckSwitchChecks');
+function formatCheckClockTime(iso) {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: CHECK_DISPLAY_TIMEZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(ms));
+}
 
 function formatResponseDuration(fromIso, toIso) {
   if (!fromIso || !toIso) return null;
@@ -122,9 +136,18 @@ function formatResponseDuration(fromIso, toIso) {
 
 function formatCheckContextLine(check, postSubmittedAtIso) {
   const line = `Checked by <@${check.userId}>`;
+  const checkedAt = formatCheckClockTime(check.checkedAtIso);
   const duration = formatResponseDuration(postSubmittedAtIso, check.checkedAtIso);
-  if (!duration) return line;
-  return `${line} · Response time: _${duration}_`;
+  if (checkedAt && duration) {
+    return `${line} · ${checkedAt} · Response time: _${duration}_`;
+  }
+  if (checkedAt) {
+    return `${line} · ${checkedAt}`;
+  }
+  if (duration) {
+    return `${line} · Response time: _${duration}_`;
+  }
+  return line;
 }
 
 function checksToUpdateFlags(checks) {
