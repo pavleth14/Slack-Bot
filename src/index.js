@@ -34,7 +34,8 @@ app.listen(port, () => {
   console.log(`  Interactive: POST /slack/interactions`);
   try {
     const { slack } = loadConfig();
-    console.log(`  Post channels: truck/accident → ${slack.channelId}`);
+    console.log(`  Post channels: /truckswitch → ${slack.truckSwitchChannelId}`);
+    console.log(`  Post channels: /accident → ${slack.channelId}`);
     console.log(`  Post channels: /loads → ${slack.loadsChannelId}`);
     console.log(
       `  Email: ${loadConfig().mail.enabled ? 'enabled (Slack + mail)' : 'disabled (Slack only)'}`

@@ -89,7 +89,7 @@ async function notifySubmissionFailed(userId, err) {
 }
 
 async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
-  const { channelId } = loadConfig().slack;
+  const { truckSwitchChannelId } = loadConfig().slack;
   const client = slackClient();
   const { attachmentFiles = [], ...formFields } = rawSubmission;
 
@@ -124,7 +124,7 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
   const mailResult = await deliverSlackAndEmail(
     async () => {
       const post = await client.chat.postMessage({
-        channel: channelId,
+        channel: truckSwitchChannelId,
         text,
         blocks,
         metadata,

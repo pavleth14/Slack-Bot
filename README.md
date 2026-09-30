@@ -18,7 +18,7 @@ Notes on the line(s) below under **Notes:**.
 
 ## Workflow
 
-1. Submit form → post in `SLACK_CHANNEL_ID` + initial email. Optional **attachments** (PDF/images) go to **email** and a **thread reply** on the post.
+1. Submit form → post in `SLACK_TRUCKSWITCH_CHANNEL_ID` (+ email when `MAIL_ENABLED=true`). Optional **attachments** go to **email** and a **thread reply** on the post.
 2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each pending row has **Mark updated** (only that team). Updated rows show **Revert**.
 3. **Mark updated** or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** closes the modal (post unchanged).
 4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
@@ -34,7 +34,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Environment
 
-- `SLACK_CHANNEL_ID` (truck switch, accident); `SLACK_LOADS_CHANNEL_ID` (**required**, `/loads` only)
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)

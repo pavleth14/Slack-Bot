@@ -30,6 +30,7 @@ function loadConfig() {
 
   const channelId = required('SLACK_CHANNEL_ID');
   const loadsChannelId = required('SLACK_LOADS_CHANNEL_ID');
+  const truckSwitchChannelId = required('SLACK_TRUCKSWITCH_CHANNEL_ID');
 
   cached = {
     port: Number(process.env.PORT || 5002),
@@ -38,6 +39,7 @@ function loadConfig() {
       signingSecret: required('SLACK_SIGNING_SECRET'),
       channelId,
       loadsChannelId,
+      truckSwitchChannelId,
       allowedUserIds: optionalList('SLACK_ALLOWED_USER_IDS'),
       safetyTeamUsergroupId: process.env.SLACK_SAFETY_TEAM_USERGROUP_ID?.trim() || '',
       controlTeamUsergroupId: process.env.SLACK_CONTROL_TEAM_USERGROUP_ID?.trim() || '',
