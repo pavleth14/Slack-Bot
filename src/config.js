@@ -29,7 +29,7 @@ function loadConfig() {
   if (cached) return cached;
 
   const channelId = required('SLACK_CHANNEL_ID');
-  const loadsChannelId = optional('SLACK_LOADS_CHANNEL_ID') || channelId;
+  const loadsChannelId = required('SLACK_LOADS_CHANNEL_ID');
 
   cached = {
     port: Number(process.env.PORT || 5002),

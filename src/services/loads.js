@@ -50,6 +50,7 @@ async function notifyLoadsSubmissionFailed(userId, err) {
 
 async function processLoadsSubmission(submission, submitterUserId) {
   const { loadsChannelId } = loadConfig().slack;
+  console.log(`[loads] posting to channel ${loadsChannelId}`);
   const client = slackClient();
   const meta = buildMeta(submitterUserId);
   const fallback = formatPostFallbackText(submission);

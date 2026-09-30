@@ -1,6 +1,7 @@
 const express = require('express');
-const { loadConfigSafe } = require('./config');
 const slackRouter = require('./routes/slack');
+
+const { loadConfigSafe, loadConfig } = require('./config');
 
 const configResult = loadConfigSafe();
 if (!configResult.ok) {
@@ -31,4 +32,11 @@ app.listen(port, () => {
   console.log(`  Slash cmd:   POST /slack/commands/accident`);
   console.log(`  Slash cmd:   POST /slack/commands/loads`);
   console.log(`  Interactive: POST /slack/interactions`);
+  try {
+    const { slack } = loadConfig();
+    console.log(`  Post channels: truck/accident → ${slack.channelId}`);
+    console.log(`  Post channels: /loads → ${slack.loadsChannelId}`);
+  } catch (err) {
+    console.warn(`  Post channels: (config error: ${err.message})`);
+  }
 });
