@@ -17,7 +17,7 @@ class DeliveryError extends Error {
 }
 
 /**
- * Slack post and email must both succeed. On mail failure, optional Slack rollback.
+ * Always posts to Slack first. Email runs only when MAIL_ENABLED=true; then failure rolls back Slack.
  * @param {() => Promise<{ channel?: string, ts?: string, rollback?: () => Promise<void> }>} slackPost
  */
 async function deliverSlackAndEmail(slackPost, submission, meta, mailOptions = {}) {
@@ -30,6 +30,11 @@ async function deliverSlackAndEmail(slackPost, submission, meta, mailOptions = {
       err.message || 'Could not post to Slack channel.',
       { slackFailed: true }
     );
+  }
+
+  const { mail } = loadConfig();
+  if (!mail.enabled) {
+    return { sent: false, skipped: true, reason: 'mail_disabled' };
   }
 
   try {

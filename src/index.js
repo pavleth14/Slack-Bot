@@ -36,6 +36,9 @@ app.listen(port, () => {
     const { slack } = loadConfig();
     console.log(`  Post channels: truck/accident → ${slack.channelId}`);
     console.log(`  Post channels: /loads → ${slack.loadsChannelId}`);
+    console.log(
+      `  Email: ${loadConfig().mail.enabled ? 'enabled (Slack + mail)' : 'disabled (Slack only)'}`
+    );
   } catch (err) {
     console.warn(`  Post channels: (config error: ${err.message})`);
   }

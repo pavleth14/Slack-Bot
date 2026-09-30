@@ -36,6 +36,7 @@ No database. Message state lives in Slack **message metadata**.
 
 - `SLACK_CHANNEL_ID` (truck switch, accident); `SLACK_LOADS_CHANNEL_ID` (**required**, `/loads` only)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
-- `DEPARTMENT_EMAILS` + SMTP
+- **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
+- `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)
 
 Port **5002**. See `deploy/nginx.api.twobrothersfreight.com.conf`.

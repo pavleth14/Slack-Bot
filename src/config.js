@@ -57,6 +57,8 @@ function loadConfig() {
       enableModalFileUpload: process.env.SLACK_ENABLE_MODAL_FILES !== 'false',
     },
     mail: {
+      /** When false, forms post to Slack only (no email attempt, no rollback). Set true to require email again. */
+      enabled: process.env.MAIL_ENABLED === 'true',
       departmentEmails: optionalList('DEPARTMENT_EMAILS'),
       smtp: {
         host: process.env.SMTP_HOST?.trim() || '',
