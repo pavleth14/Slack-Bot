@@ -1,3 +1,5 @@
+const { formatSubmittedByPrefix } = require('./submittedBy');
+
 function readYesNoLabel(flag) {
   return flag ? 'Yes' : 'No';
 }
@@ -39,15 +41,6 @@ function formatAccidentDateTime(dateIso, time24) {
   return `${datePart} — ${timePart}`;
 }
 
-function formatSubmittedAt(iso, submitterUserId) {
-  const when = iso ? new Date(iso) : new Date();
-  const timePart = when.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  return `<@${submitterUserId}> at ${timePart}`;
-}
-
 function formatPhotosLine(submission) {
   const count = submission.attachmentNames?.length || 0;
   if (!count) {
@@ -65,7 +58,7 @@ function formatPostBodyText(submission, meta) {
 
   return `*ROAD ACCIDENT REPORT*
 
-*Driver:* ${submission.driver}
+${formatSubmittedByPrefix(meta)}*Driver:* ${submission.driver}
 *Unit:* ${submission.unit}
 *Trailer:* ${displayTrailer(submission.trailer)}
 *Date/Time of Accident:* ${formatAccidentDateTime(
@@ -83,8 +76,6 @@ function formatPostBodyText(submission, meta) {
 *Towing Required:* ${yesNo(submission.trailerTowingRequired)}
 
 ${formatPhotosLine(submission)}
-
-*Submitted by:* ${formatSubmittedAt(meta.submittedAtIso, meta.submitterUserId)}
 
 ${safety} Post accident drug test required? _Reply in this thread with Yes or No._
 

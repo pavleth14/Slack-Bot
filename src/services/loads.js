@@ -53,7 +53,7 @@ async function processLoadsSubmission(submission, submitterUserId) {
   console.log(`[loads] posting to channel ${loadsChannelId}`);
   const client = slackClient();
   const meta = buildMeta(submitterUserId);
-  const fallback = formatPostFallbackText(submission);
+  const fallback = formatPostFallbackText(submission, meta);
 
   const blocks = [
     {

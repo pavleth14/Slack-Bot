@@ -1,3 +1,5 @@
+const { formatSubmittedByPrefix } = require('./submittedBy');
+
 function formatSafetyTeamMention(safetyTeamUsergroupId) {
   if (safetyTeamUsergroupId) {
     return `<!subteam^${safetyTeamUsergroupId}|safetyteam>`;
@@ -41,7 +43,7 @@ function formatPostHeaderText(submission, meta) {
 
   return `*TRUCK SWITCH*
 
-*Driver name:* ${submission.driver}
+${formatSubmittedByPrefix(meta)}*Driver name:* ${submission.driver}
 
 *Equipment Switch Details*
 

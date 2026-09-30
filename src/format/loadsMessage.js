@@ -1,3 +1,5 @@
+const { formatSubmittedByPrefix } = require('./submittedBy');
+
 function formatLoadHeadline(submission) {
   const date = submission.loadDateDisplay || submission.loadDate;
   return `${date} RC ${submission.confirmationNumber} ${submission.driverName} ${submission.truck}`;
@@ -6,18 +8,22 @@ function formatLoadHeadline(submission) {
 function formatPostBodyText(submission, meta) {
   const headline = formatLoadHeadline(submission);
   const notes = submission.notes?.trim();
-  if (!notes) {
-    return headline;
-  }
-  return `${headline}\n\n*Notes:*\n${notes}`;
+  const body = notes
+    ? `${headline}\n\n*Notes:*\n${notes}`
+    : headline;
+  return `*LOAD*\n\n${formatSubmittedByPrefix(meta)}${body}`;
 }
 
-function formatPostFallbackText(submission) {
+function formatPostFallbackText(submission, meta) {
+  const headline = formatLoadHeadline(submission);
   const notes = submission.notes?.trim();
+  const submitter = meta?.submitterUserId
+    ? `Submitted by: <@${meta.submitterUserId}>\n\n`
+    : '';
   if (!notes) {
-    return formatLoadHeadline(submission);
+    return `LOAD\n\n${submitter}${headline}`;
   }
-  return `${formatLoadHeadline(submission)}\nNotes: ${notes}`;
+  return `LOAD\n\n${submitter}${headline}\nNotes: ${notes}`;
 }
 
 function formatEmailSubject(submission) {
