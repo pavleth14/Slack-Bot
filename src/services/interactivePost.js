@@ -2,7 +2,12 @@ const {
   formatPostHeaderText,
   formatSystemRowText,
   formatWorkCompletedLine,
+  formatCheckContextLine,
 } = require('../format/truckSwitchMessage');
+const {
+  normalizeSystemCheck,
+  isSystemChecked,
+} = require('../util/truckSwitchChecks');
 const {
   ACTION_CHECK_FUEL,
   ACTION_CHECK_SAMSARA,
@@ -46,7 +51,11 @@ function parsePostMetadata(message) {
 }
 
 function allSystemsUpdated(checks) {
-  return checks.fuel && checks.samsara && checks.tms;
+  return (
+    isSystemChecked(checks.fuel) &&
+    isSystemChecked(checks.samsara) &&
+    isSystemChecked(checks.tms)
+  );
 }
 
 function buildMarkUpdatedButton(actionId, label) {
@@ -67,9 +76,9 @@ function buildInteractiveBlocks(submission, meta, payload) {
       type: 'section',
       text: { type: 'mrkdwn', text: formatPostHeaderText(submission, meta) },
     },
-    ...buildSystemRowBlocks('fuel', ACTION_CHECK_FUEL, 'Mark updated', checks, meta),
-    ...buildSystemRowBlocks('samsara', ACTION_CHECK_SAMSARA, 'Mark updated', checks, meta),
-    ...buildSystemRowBlocks('tms', ACTION_CHECK_TMS, 'Mark updated', checks, meta),
+    ...buildSystemRowBlocks('fuel', ACTION_CHECK_FUEL, 'Mark updated', checks, meta, payload),
+    ...buildSystemRowBlocks('samsara', ACTION_CHECK_SAMSARA, 'Mark updated', checks, meta, payload),
+    ...buildSystemRowBlocks('tms', ACTION_CHECK_TMS, 'Mark updated', checks, meta, payload),
     {
       type: 'section',
       text: {
@@ -94,9 +103,10 @@ function buildInteractiveBlocks(submission, meta, payload) {
   return blocks;
 }
 
-function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) {
-  const checkedBy = checks[systemKey];
+function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta, payload) {
+  const check = normalizeSystemCheck(checks[systemKey]);
   const blocks = [];
+  const postSubmittedAtIso = payload?.submissionMeta?.submittedAtIso;
 
   const section = {
     type: 'section',
@@ -104,12 +114,12 @@ function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) 
     text: {
       type: 'mrkdwn',
       text: formatSystemRowText(systemKey, meta, {
-        updated: Boolean(checkedBy),
+        updated: Boolean(check),
       }),
     },
   };
 
-  if (!checkedBy) {
+  if (!check) {
     section.accessory = buildMarkUpdatedButton(actionId, checkboxLabel);
   } else {
     section.accessory = {
@@ -122,13 +132,13 @@ function buildSystemRowBlocks(systemKey, actionId, checkboxLabel, checks, meta) 
 
   blocks.push(section);
 
-  if (checkedBy) {
+  if (check) {
     blocks.push({
       type: 'context',
       elements: [
         {
           type: 'mrkdwn',
-          text: `Checked by <@${checkedBy}>`,
+          text: formatCheckContextLine(check, postSubmittedAtIso),
         },
       ],
     });

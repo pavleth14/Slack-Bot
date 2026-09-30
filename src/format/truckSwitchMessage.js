@@ -94,11 +94,44 @@ function formatWorkCompletedLine(workDone) {
   return '*Work Completed:* :x:';
 }
 
+const { isSystemChecked } = require('../util/truckSwitchChecks');
+
+function formatResponseDuration(fromIso, toIso) {
+  if (!fromIso || !toIso) return null;
+  const fromMs = Date.parse(fromIso);
+  const toMs = Date.parse(toIso);
+  if (Number.isNaN(fromMs) || Number.isNaN(toMs)) return null;
+  const ms = toMs - fromMs;
+  if (ms < 0) return null;
+
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) {
+    return sec <= 1 ? '1 sec' : `${sec} sec`;
+  }
+  const min = Math.floor(sec / 60);
+  if (min < 60) {
+    return min === 1 ? '1 min' : `${min} min`;
+  }
+  const hours = Math.floor(min / 60);
+  const remMin = min % 60;
+  if (remMin === 0) {
+    return hours === 1 ? '1 hr' : `${hours} hr`;
+  }
+  return `${hours} hr ${remMin} min`;
+}
+
+function formatCheckContextLine(check, postSubmittedAtIso) {
+  const line = `Checked by <@${check.userId}>`;
+  const duration = formatResponseDuration(postSubmittedAtIso, check.checkedAtIso);
+  if (!duration) return line;
+  return `${line} · Response time: _${duration}_`;
+}
+
 function checksToUpdateFlags(checks) {
   return {
-    fuel: Boolean(checks?.fuel),
-    samsara: Boolean(checks?.samsara),
-    tms: Boolean(checks?.tms),
+    fuel: isSystemChecked(checks?.fuel),
+    samsara: isSystemChecked(checks?.samsara),
+    tms: isSystemChecked(checks?.tms),
   };
 }
 
@@ -154,6 +187,7 @@ module.exports = {
   formatSystemTeamMentions,
   formatSystemRowText,
   formatWorkCompletedLine,
+  formatCheckContextLine,
   formatEmailHtml,
   formatEmailSubject,
   checksToUpdateFlags,

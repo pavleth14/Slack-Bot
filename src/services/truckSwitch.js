@@ -27,6 +27,7 @@ const {
   canUserActOnSystem,
   teamLabelForSystem,
 } = require('./systemTeamAccess');
+const { isSystemChecked, createSystemCheck } = require('../util/truckSwitchChecks');
 
 function buildMeta(submitterUserId, extra = {}) {
   const {
@@ -156,12 +157,15 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
     console.error('[truckSwitch] thread file upload failed:', err.message);
   }
 
-  payload.emailMessageId = mailResult.messageId;
-  payload.emailSubject = mailResult.subject;
-  const updatedMetadata = createPostMetadata(submission, {
-    emailMessageId: mailResult.messageId,
-    emailSubject: mailResult.subject,
-  });
+  if (mailResult.messageId) {
+    payload.emailMessageId = mailResult.messageId;
+    payload.emailSubject = mailResult.subject;
+  }
+
+  const updatedMetadata = {
+    event_type: 'truck_switch_v1',
+    event_payload: payload,
+  };
 
   await client.chat.update({
     channel: postRef.channel,
@@ -279,7 +283,7 @@ async function handleSystemMarkAction(payload) {
   }
 
   const systemKey = ACTION_TO_SYSTEM[actionId];
-  if (state.checks[systemKey]) {
+  if (isSystemChecked(state.checks[systemKey])) {
     await postEphemeral(client, payload, 'This system is already marked UPDATED.');
     return;
   }
@@ -338,7 +342,7 @@ async function handleSystemRevertAction(payload) {
   }
 
   const systemKey = ACTION_TO_SYSTEM_REVERT[actionId];
-  if (!state.checks[systemKey]) {
+  if (!isSystemChecked(state.checks[systemKey])) {
     await postEphemeral(client, payload, 'This system is not marked UPDATED.');
     return;
   }
@@ -420,12 +424,12 @@ async function handleTruckSwitchConfirmSubmission(payload) {
   }
 
   if (intent === 'check') {
-    if (state.checks[systemKey]) {
+    if (isSystemChecked(state.checks[systemKey])) {
       return { ok: false, error: 'This system is already marked UPDATED.' };
     }
-    state.checks[systemKey] = userId;
+    state.checks[systemKey] = createSystemCheck(userId);
   } else if (intent === 'revert') {
-    if (!state.checks[systemKey]) {
+    if (!isSystemChecked(state.checks[systemKey])) {
       return { ok: false, error: 'This system is not marked UPDATED.' };
     }
     state.checks[systemKey] = null;
