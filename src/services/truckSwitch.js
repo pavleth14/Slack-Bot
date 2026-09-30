@@ -29,12 +29,17 @@ const {
 } = require('./systemTeamAccess');
 
 function buildMeta(submitterUserId, extra = {}) {
-  const { safetyTeamUsergroupId, maintenanceTeamUsergroupId } = loadConfig().slack;
+  const {
+    safetyTeamUsergroupId,
+    maintenanceTeamUsergroupId,
+    trackAndTraceTeamUsergroupId,
+  } = loadConfig().slack;
   return {
     submitterUserId,
     submittedAtIso: new Date().toISOString(),
     safetyTeamUsergroupId,
     maintenanceTeamUsergroupId,
+    trackAndTraceTeamUsergroupId,
     ...extra,
   };
 }

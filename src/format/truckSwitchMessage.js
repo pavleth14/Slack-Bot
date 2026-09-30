@@ -1,17 +1,33 @@
 const { formatSubmittedByPrefix } = require('./submittedBy');
 
-function formatSafetyTeamMention(safetyTeamUsergroupId) {
-  if (safetyTeamUsergroupId) {
-    return `<!subteam^${safetyTeamUsergroupId}|safetyteam>`;
+function formatUsergroupMention(usergroupId, fallbackLabel) {
+  if (usergroupId) {
+    return `<!subteam^${usergroupId}|${fallbackLabel}>`;
   }
-  return '@safetyteam';
+  return `@${fallbackLabel}`;
 }
 
-function formatMaintenanceTeamMention(maintenanceTeamUsergroupId) {
-  if (maintenanceTeamUsergroupId) {
-    return `<!subteam^${maintenanceTeamUsergroupId}|maintenance>`;
+function formatSystemTeamMentions(systemKey, meta) {
+  const safety = formatUsergroupMention(
+    meta.safetyTeamUsergroupId,
+    'safetyteam'
+  );
+  const trackAndTrace = formatUsergroupMention(
+    meta.trackAndTraceTeamUsergroupId,
+    'trackandtraceteam'
+  );
+  const eld = formatUsergroupMention(
+    meta.maintenanceTeamUsergroupId,
+    'eldteam'
+  );
+
+  if (systemKey === 'fuel' || systemKey === 'tms') {
+    return `${safety} ${trackAndTrace}`;
   }
-  return '@maintenanceteam';
+  if (systemKey === 'samsara') {
+    return eld;
+  }
+  return safety;
 }
 
 function displayTrailer(value) {
@@ -58,18 +74,13 @@ ${formatTemporaryLine(submission.switchTemporary)}
 }
 
 function formatSystemRowText(systemKey, meta, { updated }) {
-  const teams = {
-    fuel: formatSafetyTeamMention(meta.safetyTeamUsergroupId),
-    samsara: formatMaintenanceTeamMention(meta.maintenanceTeamUsergroupId),
-    tms: formatSafetyTeamMention(meta.safetyTeamUsergroupId),
-  };
   const labels = {
     fuel: 'Fuel Card',
     samsara: 'Samsara',
     tms: 'TMS',
   };
   const label = labels[systemKey];
-  const team = teams[systemKey];
+  const team = formatSystemTeamMentions(systemKey, meta);
   if (updated) {
     return `*${label}* · ${team} · *UPDATED*`;
   }
@@ -140,6 +151,7 @@ function escapeHtml(text) {
 
 module.exports = {
   formatPostHeaderText,
+  formatSystemTeamMentions,
   formatSystemRowText,
   formatWorkCompletedLine,
   formatEmailHtml,

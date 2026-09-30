@@ -45,6 +45,11 @@ function loadConfig() {
         process.env.SLACK_MAINTENANCE_TEAM_USERGROUP_ID?.trim() ||
         process.env.SLACK_ELD_TEAM_USERGROUP_ID?.trim() ||
         '',
+      trackAndTraceTeamUsergroupId:
+        process.env.SLACK_TRACK_AND_TRACE_TEAM_USERGROUP_ID?.trim() || '',
+      trackAndTraceAllowedUserIds: optionalList(
+        'SLACK_TRACK_AND_TRACE_ALLOWED_USER_IDS'
+      ),
       safetyAllowedUserIds: optionalList('SLACK_SAFETY_ALLOWED_USER_IDS'),
       maintenanceAllowedUserIds: optionalList('SLACK_MAINTENANCE_ALLOWED_USER_IDS'),
       controlAllowedUserIds: optionalList('SLACK_CONTROL_ALLOWED_USER_IDS'),

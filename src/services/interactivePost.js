@@ -49,6 +49,13 @@ function allSystemsUpdated(checks) {
   return checks.fuel && checks.samsara && checks.tms;
 }
 
+function systemRowSeparatorBlock() {
+  return {
+    type: 'context',
+    elements: [{ type: 'mrkdwn', text: '/' }],
+  };
+}
+
 function buildMarkUpdatedButton(actionId, label) {
   return {
     type: 'button',
@@ -68,7 +75,9 @@ function buildInteractiveBlocks(submission, meta, payload) {
       text: { type: 'mrkdwn', text: formatPostHeaderText(submission, meta) },
     },
     ...buildSystemRowBlocks('fuel', ACTION_CHECK_FUEL, 'Mark updated', checks, meta),
+    systemRowSeparatorBlock(),
     ...buildSystemRowBlocks('samsara', ACTION_CHECK_SAMSARA, 'Mark updated', checks, meta),
+    systemRowSeparatorBlock(),
     ...buildSystemRowBlocks('tms', ACTION_CHECK_TMS, 'Mark updated', checks, meta),
     {
       type: 'section',
