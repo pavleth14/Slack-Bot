@@ -8,6 +8,14 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 **ROAD ACCIDENT REPORT** modal (date + time pickers, incident details, optional photos) → same `SLACK_CHANNEL_ID` + email. Post includes `@safetyteam` *Post accident drug test required? Reply in this thread*, then `<!here>`. Photos go to email and a thread reply.
 
+## `/loads`
+
+Modal: date, confirmation number, truck, driver name, optional notes → same channel + email. Post format:
+
+`MM-DD-YYYY RC {confirmation} {driver} {truck}`
+
+Notes on the line(s) below under **Notes:**.
+
 ## Workflow
 
 1. Submit form → post in `SLACK_CHANNEL_ID` + initial email. Optional **attachments** (PDF/images) go to **email** and a **thread reply** on the post.
@@ -22,7 +30,7 @@ No database. Message state lives in Slack **message metadata**.
 
 - **Scopes:** `commands`, `chat:write`, `usergroups:read` (team check for Fuel/TMS/Samsara), `channels:history` (read post state on confirm). For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
-- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`
+- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`
 
 ## Environment
 

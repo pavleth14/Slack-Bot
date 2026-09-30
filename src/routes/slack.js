@@ -10,6 +10,11 @@ const {
   BLOCK_IDS: ACCIDENT_BLOCK_IDS,
   parseSubmissionValues: parseAccidentSubmissionValues,
 } = require('../blocks/roadAccidentModal');
+const {
+  CALLBACK_ID: LOADS_CALLBACK_ID,
+  BLOCK_IDS: LOADS_BLOCK_IDS,
+  parseSubmissionValues: parseLoadsSubmissionValues,
+} = require('../blocks/loadsModal');
 const { CHECK_ACTIONS, REVERT_ACTIONS } = require('../constants/actions');
 const {
   CONFIRM_CALLBACK_ID,
@@ -30,6 +35,11 @@ const {
   processRoadAccidentSubmission,
   notifyAccidentSubmissionFailed,
 } = require('../services/roadAccident');
+const {
+  openLoadsModal,
+  processLoadsSubmission,
+  notifyLoadsSubmissionFailed,
+} = require('../services/loads');
 
 const router = express.Router();
 
@@ -80,6 +90,13 @@ router.post('/commands/accident', async (req, res) => {
   return handleSlashOpenModal(req, res, {
     openModal: openRoadAccidentModal,
     commandLabel: 'accident',
+  });
+});
+
+router.post('/commands/loads', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openLoadsModal,
+    commandLabel: 'loads',
   });
 });
 
@@ -181,6 +198,36 @@ router.post('/interactions', async (req, res) => {
     processRoadAccidentSubmission(data, userId).catch((err) => {
       console.error('[interactions] road accident failed:', err.message);
       notifyAccidentSubmissionFailed(userId, err).catch(() => {});
+    });
+    return;
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    payload.view?.callback_id === LOADS_CALLBACK_ID
+  ) {
+    const userId = payload.user?.id;
+
+    if (!isUserAllowed(userId)) {
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [LOADS_BLOCK_IDS.driverName]: 'You are not allowed to submit this form.',
+        },
+      });
+    }
+
+    const { data, errors } = parseLoadsSubmissionValues(
+      payload.view.state.values
+    );
+    if (Object.keys(errors).length > 0) {
+      return res.json({ response_action: 'errors', errors });
+    }
+
+    res.json({ response_action: 'clear' });
+    processLoadsSubmission(data, userId).catch((err) => {
+      console.error('[interactions] loads failed:', err.message);
+      notifyLoadsSubmissionFailed(userId, err).catch(() => {});
     });
     return;
   }

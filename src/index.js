@@ -29,5 +29,6 @@ app.listen(port, () => {
   console.log(`  Health:      GET  /health`);
   console.log(`  Slash cmd:   POST /slack/commands/truckswitch`);
   console.log(`  Slash cmd:   POST /slack/commands/accident`);
+  console.log(`  Slash cmd:   POST /slack/commands/loads`);
   console.log(`  Interactive: POST /slack/interactions`);
 });
