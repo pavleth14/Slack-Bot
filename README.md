@@ -10,7 +10,7 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 ## `/loads`
 
-Modal: date, confirmation number, truck, driver name, optional notes → same channel + email. Post format:
+Modal: date, confirmation number, truck, driver name, optional notes → `SLACK_LOADS_CHANNEL_ID` (or `SLACK_CHANNEL_ID` if unset) + email. Invite the bot to that channel. Post format:
 
 `MM-DD-YYYY RC {confirmation} {driver} {truck}`
 
@@ -34,6 +34,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Environment
 
+- `SLACK_CHANNEL_ID` (truck switch, accident); `SLACK_LOADS_CHANNEL_ID` (optional, for `/loads` only)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - `DEPARTMENT_EMAILS` + SMTP
 

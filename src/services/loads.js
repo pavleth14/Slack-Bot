@@ -49,7 +49,7 @@ async function notifyLoadsSubmissionFailed(userId, err) {
 }
 
 async function processLoadsSubmission(submission, submitterUserId) {
-  const { channelId } = loadConfig().slack;
+  const { loadsChannelId } = loadConfig().slack;
   const client = slackClient();
   const meta = buildMeta(submitterUserId);
   const fallback = formatPostFallbackText(submission);
@@ -64,7 +64,7 @@ async function processLoadsSubmission(submission, submitterUserId) {
   await deliverSlackAndEmail(
     async () => {
       await client.chat.postMessage({
-        channel: channelId,
+        channel: loadsChannelId,
         text: fallback,
         blocks,
       });

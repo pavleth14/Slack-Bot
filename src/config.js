@@ -17,17 +17,27 @@ function optionalList(name) {
     .filter(Boolean);
 }
 
+function optional(name) {
+  const value = process.env[name];
+  if (!value || !String(value).trim()) return '';
+  return String(value).trim();
+}
+
 let cached;
 
 function loadConfig() {
   if (cached) return cached;
+
+  const channelId = required('SLACK_CHANNEL_ID');
+  const loadsChannelId = optional('SLACK_LOADS_CHANNEL_ID') || channelId;
 
   cached = {
     port: Number(process.env.PORT || 5002),
     slack: {
       botToken: required('SLACK_BOT_TOKEN'),
       signingSecret: required('SLACK_SIGNING_SECRET'),
-      channelId: required('SLACK_CHANNEL_ID'),
+      channelId,
+      loadsChannelId,
       allowedUserIds: optionalList('SLACK_ALLOWED_USER_IDS'),
       safetyTeamUsergroupId: process.env.SLACK_SAFETY_TEAM_USERGROUP_ID?.trim() || '',
       controlTeamUsergroupId: process.env.SLACK_CONTROL_TEAM_USERGROUP_ID?.trim() || '',
