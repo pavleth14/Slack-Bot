@@ -1,25 +1,46 @@
 const CALLBACK_ID = 'road_accident_submit';
 
 const BLOCK_IDS = {
-  driver: 'accident_driver_block',
-  unit: 'accident_unit_block',
-  trailer: 'accident_trailer_block',
   accidentDate: 'accident_date_block',
   accidentTime: 'accident_time_block',
   location: 'accident_location_block',
-  incident: 'accident_incident_block',
-  injuries: 'accident_injuries_block',
-  police: 'accident_police_block',
+  driver: 'accident_driver_block',
+  truck: 'accident_truck_block',
+  trailer: 'accident_trailer_block',
+  description: 'accident_description_block',
+  policeInvolved: 'accident_police_involved_block',
+  policeReportNumber: 'accident_police_report_block',
+  towedAway: 'accident_towed_block',
+  towingInfo: 'accident_towing_info_block',
   citationIssued: 'accident_citation_block',
-  truckDrivable: 'accident_truck_drivable_block',
-  truckTowingRequired: 'accident_truck_towing_block',
-  trailerDrivable: 'accident_trailer_drivable_block',
-  trailerTowingRequired: 'accident_trailer_towing_block',
+  ambulanceAtScene: 'accident_ambulance_block',
+  fuelSpillCleanup: 'accident_fuel_spill_block',
+  otherPartyCollected: 'accident_other_party_block',
   attachments: 'accident_attachments_block',
 };
 
 const ATTACHMENT_ACTION_ID = 'accident_attachments';
 const MAX_ATTACHMENT_FILES = 10;
+
+const OTHER_PARTY_OPTIONS = [
+  { value: 'cdl_photo', text: 'Picture of CDL' },
+  { value: 'insurance_cert', text: 'Insurance info (insurance cert photo)' },
+  { value: 'usdot_signs', text: 'Company signs with USDOT no.' },
+  {
+    value: 'cab_card',
+    text: 'Registration, plate, unit # (cab card photo)',
+  },
+  { value: 'damage_photos', text: 'Pictures of damage' },
+  { value: 'impact_photos', text: 'Pictures of impact from the scene' },
+  {
+    value: 'liability_statement_video',
+    text: 'Liability statement / walk-around video',
+  },
+];
+
+const OTHER_PARTY_LABELS = Object.fromEntries(
+  OTHER_PARTY_OPTIONS.map((o) => [o.value, o.text])
+);
 
 function yesNoRadio(actionId, initialYes = false) {
   const yes = {
@@ -43,10 +64,10 @@ function buildAttachmentBlock() {
     type: 'input',
     block_id: BLOCK_IDS.attachments,
     optional: true,
-    label: { type: 'plain_text', text: 'Attachments (optional)' },
+    label: { type: 'plain_text', text: 'Upload photos / documents' },
     hint: {
       type: 'plain_text',
-      text: 'Images or PDFs, up to 10 files.',
+      text: 'Attach files for the items above (CDL, damage, etc.), up to 10 files.',
     },
     element: {
       type: 'file_input',
@@ -62,37 +83,14 @@ function buildRoadAccidentModal(options = {}) {
   const blocks = [
     {
       type: 'input',
-      block_id: BLOCK_IDS.driver,
-      label: { type: 'plain_text', text: 'Driver' },
-      element: { type: 'plain_text_input', action_id: 'driver' },
-    },
-    {
-      type: 'input',
-      block_id: BLOCK_IDS.unit,
-      label: { type: 'plain_text', text: 'Unit' },
-      element: { type: 'plain_text_input', action_id: 'unit' },
-    },
-    {
-      type: 'input',
-      block_id: BLOCK_IDS.trailer,
-      optional: true,
-      label: { type: 'plain_text', text: 'Trailer' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'trailer',
-        placeholder: { type: 'plain_text', text: '/ if none' },
-      },
-    },
-    {
-      type: 'input',
       block_id: BLOCK_IDS.accidentDate,
-      label: { type: 'plain_text', text: 'Date of accident' },
+      label: { type: 'plain_text', text: 'Date' },
       element: { type: 'datepicker', action_id: 'accident_date' },
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.accidentTime,
-      label: { type: 'plain_text', text: 'Time of accident' },
+      label: { type: 'plain_text', text: 'Time' },
       element: { type: 'timepicker', action_id: 'accident_time' },
     },
     {
@@ -103,35 +101,78 @@ function buildRoadAccidentModal(options = {}) {
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.incident,
-      label: { type: 'plain_text', text: 'Incident' },
+      block_id: BLOCK_IDS.driver,
+      label: { type: 'plain_text', text: 'Our Driver' },
+      element: { type: 'plain_text_input', action_id: 'driver' },
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.truck,
+      label: { type: 'plain_text', text: 'Our Truck #' },
+      element: { type: 'plain_text_input', action_id: 'truck' },
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.trailer,
+      optional: true,
+      label: { type: 'plain_text', text: 'Our Trailer #' },
       element: {
         type: 'plain_text_input',
-        action_id: 'incident',
+        action_id: 'trailer',
+        placeholder: { type: 'plain_text', text: '/ if none' },
+      },
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.description,
+      label: { type: 'plain_text', text: 'Description' },
+      element: {
+        type: 'plain_text_input',
+        action_id: 'description',
         multiline: true,
       },
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.injuries,
-      label: { type: 'plain_text', text: 'Injuries' },
+      block_id: BLOCK_IDS.policeInvolved,
+      label: { type: 'plain_text', text: 'Police involved?' },
+      element: yesNoRadio('police_involved', false),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.policeReportNumber,
+      optional: true,
+      label: { type: 'plain_text', text: 'Police report #' },
+      hint: {
+        type: 'plain_text',
+        text: 'Required when police were involved.',
+      },
       element: {
         type: 'plain_text_input',
-        action_id: 'injuries',
-        placeholder: { type: 'plain_text', text: 'e.g. None reported' },
+        action_id: 'police_report_number',
+        placeholder: { type: 'plain_text', text: 'Report number' },
       },
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.police,
-      label: { type: 'plain_text', text: 'Police' },
+      block_id: BLOCK_IDS.towedAway,
+      label: { type: 'plain_text', text: 'Towed away?' },
+      element: yesNoRadio('towed_away', false),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.towingInfo,
+      optional: true,
+      label: { type: 'plain_text', text: 'Towing info' },
+      hint: {
+        type: 'plain_text',
+        text: 'Required when unit was towed.',
+      },
       element: {
         type: 'plain_text_input',
-        action_id: 'police',
-        placeholder: {
-          type: 'plain_text',
-          text: 'e.g. Called — Report #123456',
-        },
+        action_id: 'towing_info',
+        multiline: true,
+        placeholder: { type: 'plain_text', text: 'Company, destination, etc.' },
       },
     },
     {
@@ -142,27 +183,36 @@ function buildRoadAccidentModal(options = {}) {
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.truckDrivable,
-      label: { type: 'plain_text', text: 'Truck drivable?' },
-      element: yesNoRadio('truck_drivable', true),
+      block_id: BLOCK_IDS.ambulanceAtScene,
+      label: { type: 'plain_text', text: 'Ambulance at the scene?' },
+      element: yesNoRadio('ambulance_at_scene', false),
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.truckTowingRequired,
-      label: { type: 'plain_text', text: 'Truck towing required?' },
-      element: yesNoRadio('truck_towing', false),
+      block_id: BLOCK_IDS.fuelSpillCleanup,
+      label: { type: 'plain_text', text: 'Fuel spill / clean-up?' },
+      element: yesNoRadio('fuel_spill_cleanup', false),
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Other party — information to collect*\n_Check what you collected; upload files below. Liability statement / walk-around video when no police — include other vehicle or driver when possible._',
+      },
     },
     {
       type: 'input',
-      block_id: BLOCK_IDS.trailerDrivable,
-      label: { type: 'plain_text', text: 'Trailer drivable?' },
-      element: yesNoRadio('trailer_drivable', true),
-    },
-    {
-      type: 'input',
-      block_id: BLOCK_IDS.trailerTowingRequired,
-      label: { type: 'plain_text', text: 'Trailer towing required?' },
-      element: yesNoRadio('trailer_towing', false),
+      block_id: BLOCK_IDS.otherPartyCollected,
+      optional: true,
+      label: { type: 'plain_text', text: 'Collected from other party' },
+      element: {
+        type: 'checkboxes',
+        action_id: 'other_party_collected',
+        options: OTHER_PARTY_OPTIONS.map((o) => ({
+          value: o.value,
+          text: { type: 'plain_text', text: o.text },
+        })),
+      },
     },
   ];
 
@@ -173,7 +223,7 @@ function buildRoadAccidentModal(options = {}) {
   return {
     type: 'modal',
     callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'ROAD ACCIDENT' },
+    title: { type: 'plain_text', text: 'Accident reporting' },
     submit: { type: 'plain_text', text: 'Submit' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks,
@@ -187,52 +237,51 @@ function readRadio(values, blockId, actionId, defaultNo = true) {
   return selected === 'yes';
 }
 
-function readYesNoLabel(flag) {
-  return flag ? 'Yes' : 'No';
-}
-
 function parseSubmissionValues(values) {
-  const driver = values[BLOCK_IDS.driver]?.driver?.value?.trim() || '';
-  const unit = values[BLOCK_IDS.unit]?.unit?.value?.trim() || '';
-  const trailer = values[BLOCK_IDS.trailer]?.trailer?.value?.trim() || '';
   const accidentDate =
     values[BLOCK_IDS.accidentDate]?.accident_date?.selected_date || '';
   const accidentTime =
     values[BLOCK_IDS.accidentTime]?.accident_time?.selected_time || '';
   const location = values[BLOCK_IDS.location]?.location?.value?.trim() || '';
-  const incident = values[BLOCK_IDS.incident]?.incident?.value?.trim() || '';
-  const injuries = values[BLOCK_IDS.injuries]?.injuries?.value?.trim() || '';
-  const police = values[BLOCK_IDS.police]?.police?.value?.trim() || '';
+  const driver = values[BLOCK_IDS.driver]?.driver?.value?.trim() || '';
+  const truck = values[BLOCK_IDS.truck]?.truck?.value?.trim() || '';
+  const trailer = values[BLOCK_IDS.trailer]?.trailer?.value?.trim() || '';
+  const description =
+    values[BLOCK_IDS.description]?.description?.value?.trim() || '';
+  const policeInvolved = readRadio(
+    values,
+    BLOCK_IDS.policeInvolved,
+    'police_involved',
+    true
+  );
+  const policeReportNumber =
+    values[BLOCK_IDS.policeReportNumber]?.police_report_number?.value?.trim() ||
+    '';
+  const towedAway = readRadio(values, BLOCK_IDS.towedAway, 'towed_away', true);
+  const towingInfo =
+    values[BLOCK_IDS.towingInfo]?.towing_info?.value?.trim() || '';
   const citationIssued = readRadio(
     values,
     BLOCK_IDS.citationIssued,
     'citation_issued',
     true
   );
-  const truckDrivable = readRadio(
+  const ambulanceAtScene = readRadio(
     values,
-    BLOCK_IDS.truckDrivable,
-    'truck_drivable',
-    false
-  );
-  const truckTowingRequired = readRadio(
-    values,
-    BLOCK_IDS.truckTowingRequired,
-    'truck_towing',
+    BLOCK_IDS.ambulanceAtScene,
+    'ambulance_at_scene',
     true
   );
-  const trailerDrivable = readRadio(
+  const fuelSpillCleanup = readRadio(
     values,
-    BLOCK_IDS.trailerDrivable,
-    'trailer_drivable',
-    false
-  );
-  const trailerTowingRequired = readRadio(
-    values,
-    BLOCK_IDS.trailerTowingRequired,
-    'trailer_towing',
+    BLOCK_IDS.fuelSpillCleanup,
+    'fuel_spill_cleanup',
     true
   );
+  const otherPartyCollected = (
+    values[BLOCK_IDS.otherPartyCollected]?.other_party_collected
+      ?.selected_options || []
+  ).map((o) => o.value);
   const attachmentFiles = (
     values[BLOCK_IDS.attachments]?.[ATTACHMENT_ACTION_ID]?.files || []
   )
@@ -243,35 +292,40 @@ function parseSubmissionValues(values) {
     }));
 
   const errors = {};
-  if (!driver) errors[BLOCK_IDS.driver] = 'Driver is required.';
-  if (!unit) errors[BLOCK_IDS.unit] = 'Unit is required.';
-  if (!accidentDate) {
-    errors[BLOCK_IDS.accidentDate] = 'Date of accident is required.';
-  }
-  if (!accidentTime) {
-    errors[BLOCK_IDS.accidentTime] = 'Time of accident is required.';
-  }
+  if (!accidentDate) errors[BLOCK_IDS.accidentDate] = 'Date is required.';
+  if (!accidentTime) errors[BLOCK_IDS.accidentTime] = 'Time is required.';
   if (!location) errors[BLOCK_IDS.location] = 'Location is required.';
-  if (!incident) errors[BLOCK_IDS.incident] = 'Incident description is required.';
-  if (!injuries) errors[BLOCK_IDS.injuries] = 'Injuries field is required.';
-  if (!police) errors[BLOCK_IDS.police] = 'Police field is required.';
+  if (!driver) errors[BLOCK_IDS.driver] = 'Our Driver is required.';
+  if (!truck) errors[BLOCK_IDS.truck] = 'Our Truck # is required.';
+  if (!description) {
+    errors[BLOCK_IDS.description] = 'Description is required.';
+  }
+  if (policeInvolved && !policeReportNumber) {
+    errors[BLOCK_IDS.policeReportNumber] =
+      'Police report # is required when police were involved.';
+  }
+  if (towedAway && !towingInfo) {
+    errors[BLOCK_IDS.towingInfo] =
+      'Towing info is required when the unit was towed.';
+  }
 
   return {
     data: {
       driver,
-      unit,
+      truck,
       trailer,
       accidentDate,
       accidentTime,
       location,
-      incident,
-      injuries,
-      police,
+      description,
+      policeInvolved,
+      policeReportNumber,
+      towedAway,
+      towingInfo,
       citationIssued,
-      truckDrivable,
-      truckTowingRequired,
-      trailerDrivable,
-      trailerTowingRequired,
+      ambulanceAtScene,
+      fuelSpillCleanup,
+      otherPartyCollected,
       attachmentFiles,
     },
     errors,
@@ -281,6 +335,8 @@ function parseSubmissionValues(values) {
 module.exports = {
   CALLBACK_ID,
   BLOCK_IDS,
+  OTHER_PARTY_LABELS,
   buildRoadAccidentModal,
   parseSubmissionValues,
+  readRadio,
 };

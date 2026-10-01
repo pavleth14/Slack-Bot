@@ -1,4 +1,5 @@
 const { formatSubmittedByPrefix } = require('./submittedBy');
+const { OTHER_PARTY_LABELS } = require('../blocks/roadAccidentModal');
 
 function readYesNoLabel(flag) {
   return flag ? 'Yes' : 'No';
@@ -41,15 +42,61 @@ function formatAccidentDateTime(dateIso, time24) {
   return `${datePart} — ${timePart}`;
 }
 
-function formatPhotosLine(submission) {
+function formatPoliceLine(submission) {
+  if (!submission.policeInvolved) {
+    return '*Police involved:* No';
+  }
+  const report = submission.policeReportNumber?.trim();
+  return report
+    ? `*Police involved:* Yes — Report # ${report}`
+    : '*Police involved:* Yes';
+}
+
+function formatTowedLine(submission) {
+  if (!submission.towedAway) {
+    return '*Towed away:* No';
+  }
+  const info = submission.towingInfo?.trim();
+  return info
+    ? `*Towed away:* Yes — ${info}`
+    : '*Towed away:* Yes';
+}
+
+const OTHER_PARTY_POST_LABELS = {
+  ...OTHER_PARTY_LABELS,
+  liability_statement_video:
+    'Written statement from other party accepting liability if no police involved; walk-around video with other vehicle or driver when possible',
+};
+
+const OTHER_PARTY_OPTIONS_ORDER = [
+  'cdl_photo',
+  'insurance_cert',
+  'usdot_signs',
+  'cab_card',
+  'damage_photos',
+  'impact_photos',
+  'liability_statement_video',
+];
+
+function formatOtherPartySection(submission) {
+  const selected = submission.otherPartyCollected || [];
+  const lines = OTHER_PARTY_OPTIONS_ORDER.map((key) => {
+    const label = OTHER_PARTY_POST_LABELS[key] || key;
+    const mark = selected.includes(key) ? ':white_check_mark:' : ':white_large_square:';
+    return `${mark} ${label}`;
+  });
+  return lines.join('\n');
+}
+
+function formatAttachmentsLine(submission) {
   const count = submission.attachmentNames?.length || 0;
   if (!count) {
-    return '*Photos:* None attached';
+    return '*Files uploaded:* None';
   }
   if (count === 1) {
-    return '*Photos:* 1 attached';
+    return '*Files uploaded:* 1 file (see thread)';
   }
-  return `*Photos:* ${count} attached`;
+  return `*Files uploaded:* ${count} files (see thread)`;
 }
 
 function formatPostBodyText(submission, meta) {
@@ -58,24 +105,26 @@ function formatPostBodyText(submission, meta) {
 
   return `*ROAD ACCIDENT REPORT*
 
-${formatSubmittedByPrefix(meta)}*Driver:* ${submission.driver}
-*Unit:* ${submission.unit}
-*Trailer:* ${displayTrailer(submission.trailer)}
-*Date/Time of Accident:* ${formatAccidentDateTime(
+${formatSubmittedByPrefix(meta)}*Date / Time:* ${formatAccidentDateTime(
     submission.accidentDate,
     submission.accidentTime
   )}
 *Location:* ${submission.location}
-*Incident:* ${submission.incident}
-*Injuries:* ${submission.injuries}
-*Police:* ${submission.police}
-*Citation issued:* ${yesNo(submission.citationIssued)}
-*Truck Drivable:* ${yesNo(submission.truckDrivable)}
-*Towing Required:* ${yesNo(submission.truckTowingRequired)}
-*Trailer Drivable:* ${yesNo(submission.trailerDrivable)}
-*Towing Required:* ${yesNo(submission.trailerTowingRequired)}
+*Our Driver:* ${submission.driver}
+*Our Truck #:* ${submission.truck}
+*Our Trailer #:* ${displayTrailer(submission.trailer)}
+*Description:* ${submission.description}
 
-${formatPhotosLine(submission)}
+${formatPoliceLine(submission)}
+${formatTowedLine(submission)}
+*Citation issued:* ${yesNo(submission.citationIssued)}
+*Ambulance at the scene:* ${yesNo(submission.ambulanceAtScene)}
+*Fuel spill / clean-up:* ${yesNo(submission.fuelSpillCleanup)}
+
+*Other party — information to collect*
+${formatOtherPartySection(submission)}
+
+${formatAttachmentsLine(submission)}
 
 ${safety} Post accident drug test required? _Reply in this thread with Yes or No._
 
@@ -83,7 +132,7 @@ ${safety} Post accident drug test required? _Reply in this thread with Yes or No
 }
 
 function formatEmailSubject(submission) {
-  return `ROAD ACCIDENT — ${submission.driver} — Unit ${submission.unit}`;
+  return `ROAD ACCIDENT — ${submission.driver} — Truck ${submission.truck}`;
 }
 
 function escapeHtml(text) {
@@ -100,7 +149,9 @@ function formatEmailHtml(submission, meta) {
     .replace(/<@[^>]+>/g, (m) => m)
     .replace(/<!subteam[^>]+>/g, '@safetyteam')
     .replace(/<!here>/g, '@here')
-    .replace(/_/g, '');
+    .replace(/_/g, '')
+    .replace(/:white_check_mark:/g, '[x]')
+    .replace(/:white_large_square:/g, '[ ]');
 
   return `<!DOCTYPE html>
 <html>

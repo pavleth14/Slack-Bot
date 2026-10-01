@@ -6,7 +6,7 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 ## `/accident`
 
-**ROAD ACCIDENT REPORT** modal (date + time pickers, incident details, optional photos) → same `SLACK_CHANNEL_ID` + email. Post includes `@safetyteam` *Post accident drug test required? Reply in this thread*, then `<!here>`. Photos go to email and a thread reply.
+**Accident reporting** modal → same `SLACK_CHANNEL_ID` + email. Fields: date, time, location, our driver/truck/trailer, description, police (report #), towed away (towing info), citation, ambulance, fuel spill/clean-up; checklist for **other party** info collected (CDL, insurance, USDOT signs, cab card, damage/impact photos, liability statement/video). File upload + `@safetyteam` drug-test line + `<!here>`.
 
 ## `/loads`
 
