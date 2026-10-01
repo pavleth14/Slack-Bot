@@ -59,7 +59,7 @@ function formatEmailHtml(submission, meta) {
 <html>
 <body style="font-family:Arial,sans-serif;color:#222;white-space:pre-line;">
   <pre style="font-family:Arial,sans-serif;font-size:14px;">${escapeHtml(plain)}</pre>
-  <p style="color:#666;font-size:12px;margin-top:24px;">Submitted via /trailer-switch · ${escapeHtml(meta.submittedAtIso)}</p>
+  <p style="color:#666;font-size:12px;margin-top:24px;">Submitted via /trailerswitch · ${escapeHtml(meta.submittedAtIso)}</p>
 </body>
 </html>`;
 }

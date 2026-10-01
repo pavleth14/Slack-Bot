@@ -110,10 +110,10 @@ router.post('/commands/loads', async (req, res) => {
   });
 });
 
-router.post('/commands/trailer-switch', async (req, res) => {
+router.post('/commands/trailerswitch', async (req, res) => {
   return handleSlashOpenModal(req, res, {
     openModal: openTrailerSwitchModal,
-    commandLabel: 'trailer-switch',
+    commandLabel: 'trailerswitch',
   });
 });
 
@@ -274,7 +274,7 @@ router.post('/interactions', async (req, res) => {
 
     res.json({ response_action: 'clear' });
     processTrailerSwitchSubmission(data, userId).catch((err) => {
-      console.error('[interactions] trailer-switch failed:', err.message);
+      console.error('[interactions] trailerswitch failed:', err.message);
       notifyTrailerSwitchSubmissionFailed(userId, err).catch(() => {});
     });
     return;
