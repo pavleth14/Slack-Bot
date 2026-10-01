@@ -25,14 +25,23 @@ function optional(name) {
 
 let cached;
 
+function resolveTrailerSwitchChannelId() {
+  const primary = process.env.SLACK_TRAILERSWITCH_CHANNEL_ID?.trim();
+  if (primary) return primary;
+  const legacy = process.env.SLACK_TRAILER_SWITCH_CHANNEL_ID?.trim();
+  if (legacy) return legacy;
+  throw new Error(
+    'Missing required environment variable: SLACK_TRAILERSWITCH_CHANNEL_ID'
+  );
+}
+
 function loadConfig() {
   if (cached) return cached;
 
   const channelId = required('SLACK_CHANNEL_ID');
   const loadsChannelId = required('SLACK_LOADS_CHANNEL_ID');
   const truckSwitchChannelId = required('SLACK_TRUCKSWITCH_CHANNEL_ID');
-  const trailerSwitchChannelId =
-    optional('SLACK_TRAILER_SWITCH_CHANNEL_ID') || channelId;
+  const trailerSwitchChannelId = resolveTrailerSwitchChannelId();
 
   cached = {
     port: Number(process.env.PORT || 5002),

@@ -18,7 +18,7 @@ Notes on the line(s) below under **Notes:**.
 
 ## `/trailer-switch`
 
-Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → channel + email (same `MAIL_ENABLED` behavior as `/loads`). Default channel: `SLACK_CHANNEL_ID` (e.g. `#bot-test`); override with `SLACK_TRAILER_SWITCH_CHANNEL_ID`.
+Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only** + email (same `MAIL_ENABLED` behavior as `/loads`). Invite the bot to that channel.
 
 Post body is one sentence, e.g.:
 
@@ -42,7 +42,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Environment
 
-- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`, default `/trailer-switch`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); optional `SLACK_TRAILER_SWITCH_CHANNEL_ID`
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailer-switch`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)
