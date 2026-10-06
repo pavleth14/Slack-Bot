@@ -50,6 +50,13 @@ const {
   processTrailerSwitchSubmission,
   notifyTrailerSwitchSubmissionFailed,
 } = require('../services/trailerSwitch');
+const { CLAIMS_CALLBACK_IDS } = require('../blocks/claimsFields');
+const {
+  openClaimsModal,
+  handleClaimsViewSubmission,
+  notifyClaimsSubmissionFailed,
+  handleClaimsSelectionAction,
+} = require('../services/claims');
 
 const router = express.Router();
 
@@ -117,6 +124,13 @@ router.post('/commands/trailerswitch', async (req, res) => {
   });
 });
 
+router.post('/commands/claims', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openClaimsModal,
+    commandLabel: 'claims',
+  });
+});
+
 router.post('/interactions', async (req, res) => {
   let payload;
   try {
@@ -127,6 +141,14 @@ router.post('/interactions', async (req, res) => {
 
   if (payload.type === 'block_actions') {
     const actionId = payload.actions?.[0]?.action_id;
+    if (typeof actionId === 'string' && actionId.startsWith('claims_sel_')) {
+      try {
+        await handleClaimsSelectionAction(payload);
+      } catch (err) {
+        console.error('[interactions] claims selection failed:', err.message, err.data || '');
+      }
+      return res.status(200).send('');
+    }
     if (CHECK_ACTIONS.has(actionId) || REVERT_ACTIONS.has(actionId)) {
       try {
         if (CHECK_ACTIONS.has(actionId)) {
@@ -277,6 +299,22 @@ router.post('/interactions', async (req, res) => {
       console.error('[interactions] trailerswitch failed:', err.message);
       notifyTrailerSwitchSubmissionFailed(userId, err).catch(() => {});
     });
+    return;
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    CLAIMS_CALLBACK_IDS.has(payload.view?.callback_id)
+  ) {
+    const result = handleClaimsViewSubmission(payload);
+    res.json(result.body);
+    if (result.after) {
+      const userId = payload.user?.id;
+      result.after().catch((err) => {
+        console.error('[interactions] claims failed:', err.message);
+        notifyClaimsSubmissionFailed(userId, err).catch(() => {});
+      });
+    }
     return;
   }
 

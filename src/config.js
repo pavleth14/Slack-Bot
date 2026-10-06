@@ -62,6 +62,7 @@ function loadConfig() {
       loadsChannelId,
       truckSwitchChannelId,
       trailerSwitchChannelId,
+      claimsChannelId: process.env.SLACK_CLAIMS_CHANNEL_ID?.trim() || '',
       allowedUserIds: optionalList('SLACK_ALLOWED_USER_IDS'),
       safetyTeamUsergroupId: process.env.SLACK_SAFETY_TEAM_USERGROUP_ID?.trim() || '',
       controlTeamUsergroupId: process.env.SLACK_CONTROL_TEAM_USERGROUP_ID?.trim() || '',
