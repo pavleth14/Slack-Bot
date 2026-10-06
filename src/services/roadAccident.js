@@ -58,7 +58,8 @@ async function notifyAccidentSubmissionFailed(userId, err) {
 }
 
 async function processRoadAccidentSubmission(rawSubmission, submitterUserId) {
-  const { channelId } = loadConfig().slack;
+  const { accidentsChannelId } = loadConfig().slack;
+  console.log(`[roadAccident] posting to channel ${accidentsChannelId}`);
   const client = slackClient();
   const { attachmentFiles = [], ...formFields } = rawSubmission;
 
@@ -91,7 +92,7 @@ async function processRoadAccidentSubmission(rawSubmission, submitterUserId) {
   await deliverSlackAndEmail(
     async () => {
       const post = await client.chat.postMessage({
-        channel: channelId,
+        channel: accidentsChannelId,
         text,
         blocks,
       });

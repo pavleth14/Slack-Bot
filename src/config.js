@@ -35,20 +35,30 @@ function resolveTrailerSwitchChannelId() {
   );
 }
 
+function resolveAccidentsChannelId() {
+  const primary = process.env.SLACK_ACCIDENTS_CHANNEL_ID?.trim();
+  if (primary) return primary;
+  const legacy = process.env.SLACK_CHANNEL_ID?.trim();
+  if (legacy) return legacy;
+  throw new Error(
+    'Missing required environment variable: SLACK_ACCIDENTS_CHANNEL_ID'
+  );
+}
+
 function loadConfig() {
   if (cached) return cached;
 
-  const channelId = required('SLACK_CHANNEL_ID');
   const loadsChannelId = required('SLACK_LOADS_CHANNEL_ID');
   const truckSwitchChannelId = required('SLACK_TRUCKSWITCH_CHANNEL_ID');
   const trailerSwitchChannelId = resolveTrailerSwitchChannelId();
+  const accidentsChannelId = resolveAccidentsChannelId();
 
   cached = {
     port: Number(process.env.PORT || 5002),
     slack: {
       botToken: required('SLACK_BOT_TOKEN'),
       signingSecret: required('SLACK_SIGNING_SECRET'),
-      channelId,
+      accidentsChannelId,
       loadsChannelId,
       truckSwitchChannelId,
       trailerSwitchChannelId,

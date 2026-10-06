@@ -36,7 +36,7 @@ app.listen(port, () => {
   try {
     const { slack } = loadConfig();
     console.log(`  Post channels: /truckswitch → ${slack.truckSwitchChannelId}`);
-    console.log(`  Post channels: /accident → ${slack.channelId}`);
+    console.log(`  Post channels: /accident → ${slack.accidentsChannelId}`);
     console.log(`  Post channels: /loads → ${slack.loadsChannelId}`);
     console.log(
       `  Post channels: /trailerswitch → ${slack.trailerSwitchChannelId}`

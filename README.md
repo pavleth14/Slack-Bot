@@ -6,11 +6,11 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 ## `/accident`
 
-**Accident reporting** modal → same `SLACK_CHANNEL_ID` + email. Fields: date, time, location, our driver/truck/trailer, description, police (report #), towed away (towing info), citation, ambulance, fuel spill/clean-up; checklist for **other party** info collected (CDL, insurance, USDOT signs, cab card, damage/impact photos, liability statement/video). File upload + `@safetyteam` drug-test line + `<!here>`.
+**Accident reporting** modal → **`SLACK_ACCIDENTS_CHANNEL_ID` only** + email. Fields: date, time, location, our driver/truck/trailer, description, police (report #), towed away (towing info), citation, ambulance, fuel spill/clean-up; checklist for **other party** info collected (CDL, insurance, USDOT signs, cab card, damage/impact photos, liability statement/video). File upload + `@safetyteam` drug-test line + `<!here>`.
 
 ## `/loads`
 
-Modal: date, confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** (not `SLACK_CHANNEL_ID`) + email. Invite the bot to that channel. Post format:
+Modal: date, confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** + email. Invite the bot to that channel. Post format:
 
 `MM-DD-YYYY RC {confirmation} {driver} {truck}`
 
@@ -42,7 +42,7 @@ No database. Message state lives in Slack **message metadata**.
 
 ## Environment
 
-- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`)
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)
