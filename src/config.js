@@ -45,6 +45,16 @@ function resolveAccidentsChannelId() {
   );
 }
 
+function resolveClaimsChannelId() {
+  const primary = process.env.SLACK_CLAIMS_CHANNEL_ID?.trim();
+  if (primary) return primary;
+  const testChannel = process.env.SLACK_CHANNEL_ID?.trim();
+  if (testChannel) return testChannel;
+  throw new Error(
+    'Missing SLACK_CLAIMS_CHANNEL_ID or SLACK_CHANNEL_ID for /claims'
+  );
+}
+
 function loadConfig() {
   if (cached) return cached;
 
@@ -52,6 +62,7 @@ function loadConfig() {
   const truckSwitchChannelId = required('SLACK_TRUCKSWITCH_CHANNEL_ID');
   const trailerSwitchChannelId = resolveTrailerSwitchChannelId();
   const accidentsChannelId = resolveAccidentsChannelId();
+  const claimsChannelId = resolveClaimsChannelId();
 
   cached = {
     port: Number(process.env.PORT || 5002),
@@ -62,7 +73,7 @@ function loadConfig() {
       loadsChannelId,
       truckSwitchChannelId,
       trailerSwitchChannelId,
-      claimsChannelId: process.env.SLACK_CLAIMS_CHANNEL_ID?.trim() || '',
+      claimsChannelId,
       allowedUserIds: optionalList('SLACK_ALLOWED_USER_IDS'),
       safetyTeamUsergroupId: process.env.SLACK_SAFETY_TEAM_USERGROUP_ID?.trim() || '',
       controlTeamUsergroupId: process.env.SLACK_CONTROL_TEAM_USERGROUP_ID?.trim() || '',

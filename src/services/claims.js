@@ -45,10 +45,7 @@ function makeClaimId() {
 }
 
 async function openClaimsModal(triggerId) {
-  const { botToken, claimsChannelId } = loadConfig().slack;
-  if (!claimsChannelId) {
-    throw new Error('SLACK_CLAIMS_CHANNEL_ID is not set');
-  }
+  const { botToken } = loadConfig().slack;
   const draftId = createDraft();
   const client = new WebClient(botToken);
   await client.views.open({
@@ -137,9 +134,6 @@ async function notifyClaimsSubmissionFailed(userId, err) {
 
 async function processClaimsSubmission(submission, submitterUserId) {
   const { claimsChannelId } = loadConfig().slack;
-  if (!claimsChannelId) {
-    throw new Error('Set SLACK_CLAIMS_CHANNEL_ID and restart the bot.');
-  }
   console.log(`[claims] posting to channel ${claimsChannelId}`);
   const client = slackClient();
   const claimId = makeClaimId();

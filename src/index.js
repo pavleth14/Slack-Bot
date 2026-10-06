@@ -43,7 +43,7 @@ app.listen(port, () => {
       `  Post channels: /trailerswitch → ${slack.trailerSwitchChannelId}`
     );
     console.log(
-      `  Post channels: /claims → ${slack.claimsChannelId || '(set SLACK_CLAIMS_CHANNEL_ID)'}`
+      `  Post channels: /claims → ${slack.claimsChannelId}`
     );
     console.log(
       `  Email: ${loadConfig().mail.enabled ? 'enabled (Slack + mail)' : 'disabled (Slack only)'}`
