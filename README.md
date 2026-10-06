@@ -20,7 +20,7 @@ Notes on the line(s) below under **Notes:**.
 
 Three-step modal for ongoing claim management (no email). Posts to `SLACK_CLAIMS_CHANNEL_ID` when that is set; otherwise to `SLACK_CHANNEL_ID` (bot-test). Set `SLACK_CLAIMS_CHANNEL_ID` when the real claims channel exists. Invite the bot. Slash command URL: `https://<host>/slack/commands/claims`.
 
-The post shows 🟢 paid and closed, 🟡 ongoing, or 🔴 rejected. Checkbox groups on the post stay editable. Inside each status-style group only one box can stay checked. Document checklist and the closure requirement list allow more than one.
+The post shows 🟢 paid and closed, 🟡 ongoing, or 🔴 rejected. Checkbox changes are written back onto the message so the whole channel sees the same boxes. Several boxes in a group can stay checked. Set `POST_SELECTION_MODE` to `exclusive` in `src/services/claimsSelection.js` when a group should keep only one box.
 
 ## `/trailerswitch`
 

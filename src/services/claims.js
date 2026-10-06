@@ -18,10 +18,35 @@ const {
 } = require('../format/claimsMessage');
 const {
   chunkOptions,
-  resolveExclusive,
-  resolveMulti,
+  applyGroupSelection,
   parseSelectionActionId,
 } = require('./claimsSelection');
+
+const claimQueues = new Map();
+
+function withClaimLock(claimId, work) {
+  const previous = claimQueues.get(claimId) || Promise.resolve();
+  const run = previous.then(work, work);
+  claimQueues.set(
+    claimId,
+    run.then(
+      () => {},
+      () => {}
+    )
+  );
+  return run;
+}
+
+function seenSelectionFromMessage(message, action) {
+  const blocks = message?.blocks || [];
+  const block =
+    blocks.find((item) => item.block_id && item.block_id === action?.block_id) ||
+    blocks.find((item) => item.accessory?.action_id === action?.action_id);
+  if (!block?.accessory) return null;
+  return (block.accessory.initial_options || [])
+    .map((option) => option.value)
+    .filter(Boolean);
+}
 
 const drafts = new Map();
 const DRAFT_TTL_MS = 6 * 60 * 60 * 1000;
@@ -144,7 +169,7 @@ async function processClaimsSubmission(submission, submitterUserId) {
   const record = { submission, meta };
   saveClaim(claimId, record);
 
-  const { blocks, overflowBlocks } = buildClaimsBlocks(submission, meta, claimId);
+  const { blocks, overflowBlocks } = buildClaimsBlocks(submission, meta, claimId, 0);
   const text = formatClaimsFallback(submission);
   const metadata = {
     event_type: 'claims_v1',
@@ -190,39 +215,51 @@ async function handleClaimsSelectionAction(payload) {
   if (!parsed) return;
 
   const claimId = claimIdFromMessage(payload.message);
-  const record = claimId ? loadClaim(claimId) : null;
-  if (!record) {
+  if (!claimId || !loadClaim(claimId)) {
     console.error('[claims] selection for unknown claim', claimId || action?.action_id);
     return;
   }
 
   const group = GROUP_BY_KEY[parsed.key];
   if (!group) return;
-  const parts = chunkOptions(group.options);
-  const partValues = (parts[parsed.part] || []).map((option) => option.value);
-  const selected = (action.selected_options || []).map((option) => option.value);
-  const previous = record.submission[group.key];
-  record.submission[group.key] = group.multi
-    ? resolveMulti(previous, selected, partValues)
-    : resolveExclusive(previous, selected, partValues);
 
-  saveClaim(claimId, record);
-
+  const seenSelected = seenSelectionFromMessage(payload.message, action);
+  const clickedSelected = (action.selected_options || []).map((option) => option.value);
   const channel = payload.channel?.id || payload.container?.channel_id;
   const ts = payload.message?.ts || payload.container?.message_ts;
   if (!channel || !ts) return;
 
-  const { blocks } = buildClaimsBlocks(record.submission, record.meta, claimId);
-  const client = slackClient();
-  await client.chat.update({
-    channel,
-    ts,
-    text: formatClaimsFallback(record.submission),
-    blocks,
-    metadata: {
-      event_type: 'claims_v1',
-      event_payload: { claimId },
-    },
+  await withClaimLock(claimId, async () => {
+    const record = loadClaim(claimId);
+    if (!record) return;
+    const parts = chunkOptions(group.options);
+    const partValues = (parts[parsed.part] || []).map((option) => option.value);
+    record.submission[group.key] = applyGroupSelection(
+      record.submission[group.key],
+      partValues,
+      seenSelected,
+      clickedSelected
+    );
+    record.revision = (Number(record.revision) || 0) + 1;
+    saveClaim(claimId, record);
+
+    const { blocks } = buildClaimsBlocks(
+      record.submission,
+      record.meta,
+      claimId,
+      record.revision
+    );
+    const client = slackClient();
+    await client.chat.update({
+      channel,
+      ts,
+      text: formatClaimsFallback(record.submission),
+      blocks,
+      metadata: {
+        event_type: 'claims_v1',
+        event_payload: { claimId },
+      },
+    });
   });
 }
 

@@ -1,5 +1,5 @@
 const { CLAIMS_STEPS, TEXT_BY_KEY, GROUP_BY_KEY } = require('../blocks/claimsFields');
-const { chunkOptions, claimIndicator } = require('../services/claimsSelection');
+const { chunkOptions, claimIndicator, selectionList } = require('../services/claimsSelection');
 
 const SECTION_TEXT_LIMIT = 2900;
 const MESSAGE_BLOCK_LIMIT = 50;
@@ -80,12 +80,10 @@ function summaryLines(submission) {
 }
 
 function selectedValues(group, submission) {
-  const raw = submission[group.key];
-  if (group.multi) return new Set(Array.isArray(raw) ? raw : []);
-  return new Set(raw ? [raw] : []);
+  return new Set(selectionList(submission[group.key]));
 }
 
-function checkboxBlocks(group, submission) {
+function checkboxBlocks(group, submission, revision) {
   const parts = chunkOptions(group.options);
   const selected = selectedValues(group, submission);
   return parts.map((options, index) => {
@@ -95,25 +93,25 @@ function checkboxBlocks(group, submission) {
       parts.length === 1 ? `*${group.label}*` : `*${group.label}* (${index + 1}/${parts.length})`;
     const element = {
       type: 'checkboxes',
-      action_id: `claims_sel_${group.key}__p${index}`,
+      action_id: `claims_sel_${group.key}__p${index}__r${revision}`,
       options: slackOptions,
     };
     if (initial.length) element.initial_options = initial;
     return {
       type: 'section',
-      block_id: `claims_grp_${group.key}__p${index}`,
+      block_id: `claims_grp_${group.key}__p${index}__r${revision}`,
       text: { type: 'mrkdwn', text: label },
       accessory: element,
     };
   });
 }
 
-function interactiveBlocks(submission) {
+function interactiveBlocks(submission, revision) {
   const blocks = [];
   for (const step of CLAIMS_STEPS) {
     for (const item of step.items) {
       if (!item.group) continue;
-      blocks.push(...checkboxBlocks(GROUP_BY_KEY[item.group], submission));
+      blocks.push(...checkboxBlocks(GROUP_BY_KEY[item.group], submission, revision));
     }
   }
   return blocks;
@@ -128,14 +126,14 @@ function headerBlock(submission, meta, claimId) {
     block_id: `claims_post_${claimId}`,
     text: {
       type: 'mrkdwn',
-      text: `${indicator.emoji} *ONGOING CLAIM* — ${indicator.label}\n*Claim Number:* ${claimNo}${by}\n_One box per group. Document checklist and the closure list allow more than one._`,
+      text: `${indicator.emoji} *ONGOING CLAIM* — ${indicator.label}\n*Claim Number:* ${claimNo}${by}\n_Checkbox changes on this message are shared with the channel._`,
     },
   };
 }
 
-function buildClaimsBlocks(submission, meta, claimId) {
+function buildClaimsBlocks(submission, meta, claimId, revision = 0) {
   const header = headerBlock(submission, meta, claimId);
-  const choices = interactiveBlocks(submission);
+  const choices = interactiveBlocks(submission, revision);
   const textBlocks = packLines(summaryLines(submission));
   const room = MESSAGE_BLOCK_LIMIT - 1 - choices.length;
   const mainText = textBlocks.slice(0, Math.max(room, 0));
