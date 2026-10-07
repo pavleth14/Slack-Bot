@@ -446,12 +446,48 @@ async function handleTruckSwitchConfirmSubmission(payload) {
   return { ok: true };
 }
 
+async function fetchMessageForEdit(client, channel, messageTs) {
+  const history = await client.conversations.history({
+    channel,
+    latest: messageTs,
+    oldest: messageTs,
+    inclusive: true,
+    limit: 1,
+  });
+  return history.messages?.[0] || null;
+}
+
+async function processTruckSwitchEditSubmission(rawSubmission, userId, editCtx) {
+  const client = slackClient();
+  const message = await fetchMessageForEdit(
+    client,
+    editCtx.channel,
+    editCtx.messageTs
+  );
+  const state = parsePostMetadata(message);
+  if (!state?.submissionMeta?.submitterUserId) {
+    throw new Error('Could not read the post to update.');
+  }
+  if (state.submissionMeta.submitterUserId !== userId) {
+    throw new Error('Only the submitter can edit this post.');
+  }
+
+  const { attachmentFiles: _ignored, ...formFields } = rawSubmission;
+  state.submission = {
+    ...formFields,
+    attachmentNames: state.submission.attachmentNames || [],
+  };
+
+  await syncPostMessage(client, editCtx.channel, editCtx.messageTs, state);
+}
+
 module.exports = {
   DeliveryError,
   isUserAllowed,
   openTruckSwitchModal,
   formatViewsOpenError,
   processTruckSwitchSubmission,
+  processTruckSwitchEditSubmission,
   notifySubmissionFailed,
   handleSystemMarkAction,
   handleSystemRevertAction,

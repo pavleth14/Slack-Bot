@@ -22,6 +22,12 @@ const {
 } = require('../blocks/trailerSwitchModal');
 const { CHECK_ACTIONS, REVERT_ACTIONS } = require('../constants/actions');
 const {
+  FORM_EDIT_ACTIONS,
+  handleFormEditButton,
+  parseEditPrivateMetadata,
+  assertEditSubmitter,
+} = require('../services/formEdit');
+const {
   CONFIRM_CALLBACK_ID,
   CONFIRM_BLOCK_ID,
 } = require('../blocks/truckSwitchConfirmModal');
@@ -34,20 +40,24 @@ const {
   handleSystemMarkAction,
   handleSystemRevertAction,
   handleTruckSwitchConfirmSubmission,
+  processTruckSwitchEditSubmission,
 } = require('../services/truckSwitch');
 const {
   openRoadAccidentModal,
   processRoadAccidentSubmission,
+  processRoadAccidentEditSubmission,
   notifyAccidentSubmissionFailed,
 } = require('../services/roadAccident');
 const {
   openLoadsModal,
   processLoadsSubmission,
+  processLoadsEditSubmission,
   notifyLoadsSubmissionFailed,
 } = require('../services/loads');
 const {
   openTrailerSwitchModal,
   processTrailerSwitchSubmission,
+  processTrailerSwitchEditSubmission,
   notifyTrailerSwitchSubmissionFailed,
 } = require('../services/trailerSwitch');
 const { CLAIMS_CALLBACK_IDS } = require('../blocks/claimsFields');
@@ -141,6 +151,14 @@ router.post('/interactions', async (req, res) => {
 
   if (payload.type === 'block_actions') {
     const actionId = payload.actions?.[0]?.action_id;
+    if (FORM_EDIT_ACTIONS.has(actionId)) {
+      try {
+        await handleFormEditButton(payload);
+      } catch (err) {
+        console.error('[interactions] form edit open failed:', err.message);
+      }
+      return res.status(200).send('');
+    }
     if (typeof actionId === 'string' && actionId.startsWith('claims_sel_')) {
       try {
         await handleClaimsSelectionAction(payload);
@@ -188,6 +206,7 @@ router.post('/interactions', async (req, res) => {
 
   if (payload.type === 'view_submission' && payload.view?.callback_id === CALLBACK_ID) {
     const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
 
     if (!isUserAllowed(userId)) {
       return res.json({
@@ -203,6 +222,22 @@ router.post('/interactions', async (req, res) => {
       return res.json({ response_action: 'errors', errors });
     }
 
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [BLOCK_IDS.driver]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processTruckSwitchEditSubmission(data, userId, editCtx).catch((err) => {
+        console.error('[interactions] truck switch edit failed:', err.message);
+        notifySubmissionFailed(userId, err).catch(() => {});
+      });
+      return;
+    }
+
     res.json({ response_action: 'clear' });
     processTruckSwitchSubmission(data, userId).catch((err) => {
       console.error('[interactions] phase1 failed:', err.message);
@@ -216,6 +251,7 @@ router.post('/interactions', async (req, res) => {
     payload.view?.callback_id === ACCIDENT_CALLBACK_ID
   ) {
     const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
 
     if (!isUserAllowed(userId)) {
       return res.json({
@@ -233,6 +269,22 @@ router.post('/interactions', async (req, res) => {
       return res.json({ response_action: 'errors', errors });
     }
 
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [ACCIDENT_BLOCK_IDS.driver]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processRoadAccidentEditSubmission(data, userId, editCtx).catch((err) => {
+        console.error('[interactions] accident edit failed:', err.message);
+        notifyAccidentSubmissionFailed(userId, err).catch(() => {});
+      });
+      return;
+    }
+
     res.json({ response_action: 'clear' });
     processRoadAccidentSubmission(data, userId).catch((err) => {
       console.error('[interactions] road accident failed:', err.message);
@@ -246,6 +298,7 @@ router.post('/interactions', async (req, res) => {
     payload.view?.callback_id === LOADS_CALLBACK_ID
   ) {
     const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
 
     if (!isUserAllowed(userId)) {
       return res.json({
@@ -263,6 +316,22 @@ router.post('/interactions', async (req, res) => {
       return res.json({ response_action: 'errors', errors });
     }
 
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [LOADS_BLOCK_IDS.driverName]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processLoadsEditSubmission(data, userId, editCtx).catch((err) => {
+        console.error('[interactions] loads edit failed:', err.message);
+        notifyLoadsSubmissionFailed(userId, err).catch(() => {});
+      });
+      return;
+    }
+
     res.json({ response_action: 'clear' });
     processLoadsSubmission(data, userId).catch((err) => {
       console.error('[interactions] loads failed:', err.message);
@@ -276,6 +345,7 @@ router.post('/interactions', async (req, res) => {
     payload.view?.callback_id === TRAILER_SWITCH_CALLBACK_ID
   ) {
     const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
 
     if (!isUserAllowed(userId)) {
       return res.json({
@@ -292,6 +362,22 @@ router.post('/interactions', async (req, res) => {
     );
     if (Object.keys(errors).length > 0) {
       return res.json({ response_action: 'errors', errors });
+    }
+
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [TRAILER_SWITCH_BLOCK_IDS.action]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processTrailerSwitchEditSubmission(data, userId, editCtx).catch((err) => {
+        console.error('[interactions] trailerswitch edit failed:', err.message);
+        notifyTrailerSwitchSubmissionFailed(userId, err).catch(() => {});
+      });
+      return;
     }
 
     res.json({ response_action: 'clear' });

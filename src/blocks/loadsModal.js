@@ -8,52 +8,81 @@ const BLOCK_IDS = {
   notes: 'loads_notes_block',
 };
 
-function buildLoadsModal() {
-  return {
+const {
+  withInitialValue,
+  withInitialDate,
+} = require('../util/modalInitialValues');
+
+function buildLoadsModal(options = {}) {
+  const initial = options.initial || {};
+  const isEdit = Boolean(options.isEdit);
+
+  const view = {
     type: 'modal',
     callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'New load' },
-    submit: { type: 'plain_text', text: 'Submit' },
+    title: { type: 'plain_text', text: isEdit ? 'Edit load' : 'New load' },
+    submit: { type: 'plain_text', text: isEdit ? 'Save' : 'Submit' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks: [
       {
         type: 'input',
         block_id: BLOCK_IDS.loadDate,
         label: { type: 'plain_text', text: 'Date' },
-        element: { type: 'datepicker', action_id: 'load_date' },
+        element: withInitialDate(
+          { type: 'datepicker', action_id: 'load_date' },
+          initial.loadDate
+        ),
       },
       {
         type: 'input',
         block_id: BLOCK_IDS.confirmationNumber,
         label: { type: 'plain_text', text: 'Confirmation number' },
-        element: { type: 'plain_text_input', action_id: 'confirmation_number' },
+        element: withInitialValue(
+          { type: 'plain_text_input', action_id: 'confirmation_number' },
+          initial.confirmationNumber
+        ),
       },
       {
         type: 'input',
         block_id: BLOCK_IDS.truck,
         label: { type: 'plain_text', text: 'Truck' },
-        element: { type: 'plain_text_input', action_id: 'truck' },
+        element: withInitialValue(
+          { type: 'plain_text_input', action_id: 'truck' },
+          initial.truck
+        ),
       },
       {
         type: 'input',
         block_id: BLOCK_IDS.driverName,
         label: { type: 'plain_text', text: 'Driver name' },
-        element: { type: 'plain_text_input', action_id: 'driver_name' },
+        element: withInitialValue(
+          { type: 'plain_text_input', action_id: 'driver_name' },
+          initial.driverName
+        ),
       },
       {
         type: 'input',
         block_id: BLOCK_IDS.notes,
         optional: true,
         label: { type: 'plain_text', text: 'Notes' },
-        element: {
-          type: 'plain_text_input',
-          action_id: 'notes',
-          multiline: true,
-          placeholder: { type: 'plain_text', text: 'Load description…' },
-        },
+        element: withInitialValue(
+          {
+            type: 'plain_text_input',
+            action_id: 'notes',
+            multiline: true,
+            placeholder: { type: 'plain_text', text: 'Load description…' },
+          },
+          initial.notes
+        ),
       },
     ],
   };
+
+  if (options.privateMetadata) {
+    view.private_metadata = options.privateMetadata;
+  }
+
+  return view;
 }
 
 function formatLoadDateForPost(isoDate) {

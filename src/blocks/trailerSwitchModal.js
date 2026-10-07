@@ -8,11 +8,17 @@ const BLOCK_IDS = {
   trailerStatus: 'trailer_switch_status_block',
   loadNumber: 'trailer_switch_load_block',
   location: 'trailer_switch_location_block',
+  notes: 'trailer_switch_notes_block',
   attachments: 'trailer_switch_attachments_block',
 };
 
 const ATTACHMENT_ACTION_ID = 'attachments';
 const MAX_ATTACHMENT_FILES = 5;
+
+const {
+  withInitialValue,
+  withInitialStaticSelect,
+} = require('../util/modalInitialValues');
 
 function buildAttachmentBlock() {
   return {
@@ -32,48 +38,58 @@ function buildAttachmentBlock() {
   };
 }
 
+const ACTION_OPTIONS = [
+  { text: { type: 'plain_text', text: 'Pick up' }, value: 'pickup' },
+  { text: { type: 'plain_text', text: 'Drop off' }, value: 'dropoff' },
+];
+
+const STATUS_OPTIONS = [
+  { text: { type: 'plain_text', text: 'Empty' }, value: 'empty' },
+  { text: { type: 'plain_text', text: 'Loaded' }, value: 'loaded' },
+];
+
 function buildTrailerSwitchModal(options = {}) {
   const includeAttachments = options.includeAttachments !== false;
+  const initial = options.initial || {};
+  const isEdit = Boolean(options.isEdit);
 
   const blocks = [
     {
       type: 'input',
       block_id: BLOCK_IDS.action,
       label: { type: 'plain_text', text: 'Action' },
-      element: {
-        type: 'static_select',
-        action_id: 'action',
-        placeholder: { type: 'plain_text', text: 'Pick up or drop off' },
-        options: [
-          {
-            text: { type: 'plain_text', text: 'Pick up' },
-            value: 'pickup',
-          },
-          {
-            text: { type: 'plain_text', text: 'Drop off' },
-            value: 'dropoff',
-          },
-        ],
-      },
+      element: withInitialStaticSelect(
+        {
+          type: 'static_select',
+          action_id: 'action',
+          placeholder: { type: 'plain_text', text: 'Pick up or drop off' },
+          options: ACTION_OPTIONS,
+        },
+        initial.action,
+        ACTION_OPTIONS
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.truck,
       label: { type: 'plain_text', text: 'Truck number' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'truck',
-        placeholder: { type: 'plain_text', text: '223' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'truck',
+          placeholder: { type: 'plain_text', text: '223' },
+        },
+        initial.truck
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.driverName,
       label: { type: 'plain_text', text: 'Driver name' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'driver_name',
-      },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'driver_name' },
+        initial.driverName
+      ),
     },
     {
       type: 'input',
@@ -83,31 +99,29 @@ function buildTrailerSwitchModal(options = {}) {
         type: 'plain_text',
         text: 'Free text; # is added in the post if you omit it.',
       },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'trailer_number',
-        placeholder: { type: 'plain_text', text: '#S532404' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'trailer_number',
+          placeholder: { type: 'plain_text', text: '#S532404' },
+        },
+        initial.trailerNumber
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.trailerStatus,
       label: { type: 'plain_text', text: 'Trailer status' },
-      element: {
-        type: 'static_select',
-        action_id: 'trailer_status',
-        placeholder: { type: 'plain_text', text: 'Empty or loaded' },
-        options: [
-          {
-            text: { type: 'plain_text', text: 'Empty' },
-            value: 'empty',
-          },
-          {
-            text: { type: 'plain_text', text: 'Loaded' },
-            value: 'loaded',
-          },
-        ],
-      },
+      element: withInitialStaticSelect(
+        {
+          type: 'static_select',
+          action_id: 'trailer_status',
+          placeholder: { type: 'plain_text', text: 'Empty or loaded' },
+          options: STATUS_OPTIONS,
+        },
+        initial.trailerStatus,
+        STATUS_OPTIONS
+      ),
     },
     {
       type: 'input',
@@ -118,39 +132,68 @@ function buildTrailerSwitchModal(options = {}) {
         type: 'plain_text',
         text: 'Required when trailer is loaded.',
       },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'load_number',
-        placeholder: { type: 'plain_text', text: '25372' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'load_number',
+          placeholder: { type: 'plain_text', text: '25372' },
+        },
+        initial.loadNumber
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.location,
       label: { type: 'plain_text', text: 'Location' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'location',
-        placeholder: {
-          type: 'plain_text',
-          text: 'Justice Yard IL or full street address',
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'location',
+          placeholder: {
+            type: 'plain_text',
+            text: 'Justice Yard IL or full street address',
+          },
         },
-      },
+        initial.location
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.notes,
+      optional: true,
+      label: { type: 'plain_text', text: 'Notes' },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'notes',
+          multiline: true,
+        },
+        initial.notes
+      ),
     },
   ];
 
-  if (includeAttachments) {
+  if (includeAttachments && !isEdit) {
     blocks.push(buildAttachmentBlock());
   }
 
-  return {
+  const view = {
     type: 'modal',
     callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'Trailer switch' },
-    submit: { type: 'plain_text', text: 'Submit' },
+    title: {
+      type: 'plain_text',
+      text: isEdit ? 'Edit trailer switch' : 'Trailer switch',
+    },
+    submit: { type: 'plain_text', text: isEdit ? 'Save' : 'Submit' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks,
   };
+
+  if (options.privateMetadata) {
+    view.private_metadata = options.privateMetadata;
+  }
+
+  return view;
 }
 
 function parseSubmissionValues(values) {
@@ -167,6 +210,7 @@ function parseSubmissionValues(values) {
   const loadNumber =
     values[BLOCK_IDS.loadNumber]?.load_number?.value?.trim() || '';
   const location = values[BLOCK_IDS.location]?.location?.value?.trim() || '';
+  const notes = values[BLOCK_IDS.notes]?.notes?.value?.trim() || '';
   const attachmentFiles = (
     values[BLOCK_IDS.attachments]?.[ATTACHMENT_ACTION_ID]?.files || []
   )
@@ -200,6 +244,7 @@ function parseSubmissionValues(values) {
       trailerStatus,
       loadNumber: trailerStatus === 'loaded' ? loadNumber : '',
       location,
+      notes,
       attachmentFiles,
     },
     errors,

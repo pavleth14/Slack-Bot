@@ -99,11 +99,17 @@ function formatAttachmentsLine(submission) {
   return `*Files uploaded:* ${count} files (see thread)`;
 }
 
-function formatPostBodyText(submission, meta) {
-  const safety = formatSafetyTeamMention(meta.safetyTeamUsergroupId);
-  const yesNo = (v) => readYesNoLabel(v);
+const SLACK_SECTION_TEXT_MAX = 2900;
 
-  return `*ROAD ACCIDENT REPORT*
+function truncateForSlackBlock(text, max = SLACK_SECTION_TEXT_MAX) {
+  const s = String(text || '');
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1)}…`;
+}
+
+function formatAccidentMainSection(submission, meta) {
+  const yesNo = (v) => readYesNoLabel(v);
+  return truncateForSlackBlock(`*ROAD ACCIDENT REPORT*
 
 ${formatSubmittedByPrefix(meta)}*Date / Time:* ${formatAccidentDateTime(
     submission.accidentDate,
@@ -119,16 +125,52 @@ ${formatPoliceLine(submission)}
 ${formatTowedLine(submission)}
 *Citation issued:* ${yesNo(submission.citationIssued)}
 *Ambulance at the scene:* ${yesNo(submission.ambulanceAtScene)}
-*Fuel spill / clean-up:* ${yesNo(submission.fuelSpillCleanup)}
+*Fuel spill / clean-up:* ${yesNo(submission.fuelSpillCleanup)}`);
+}
 
-*Other party — information to collect*
-${formatOtherPartySection(submission)}
+function formatAccidentOtherPartySection(submission) {
+  return truncateForSlackBlock(`*Other party — information to collect*
+${formatOtherPartySection(submission)}`);
+}
 
-${formatAttachmentsLine(submission)}
+function formatAccidentFooterSection(submission, meta) {
+  const safety = formatSafetyTeamMention(meta.safetyTeamUsergroupId);
+  return `${formatAttachmentsLine(submission)}
 
 ${safety} Post accident drug test required? _Reply in this thread with Yes or No._
 
 <!here>`;
+}
+
+function buildAccidentSlackBlocks(submission, meta) {
+  return [
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: formatAccidentMainSection(submission, meta) },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: formatAccidentOtherPartySection(submission),
+      },
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: formatAccidentFooterSection(submission, meta),
+      },
+    },
+  ];
+}
+
+function formatPostBodyText(submission, meta) {
+  return `${formatAccidentMainSection(submission, meta)}
+
+${formatAccidentOtherPartySection(submission)}
+
+${formatAccidentFooterSection(submission, meta)}`;
 }
 
 function formatEmailSubject(submission) {
@@ -164,6 +206,7 @@ function formatEmailHtml(submission, meta) {
 
 module.exports = {
   formatPostBodyText,
+  buildAccidentSlackBlocks,
   formatEmailSubject,
   formatEmailHtml,
 };

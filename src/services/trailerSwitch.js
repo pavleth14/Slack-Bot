@@ -14,12 +14,30 @@ const {
   uploadFilesToThread,
 } = require('./slackFiles');
 const { formatViewsOpenError } = require('./truckSwitch');
+const { ACTION_EDIT_TRAILER_SWITCH } = require('../constants/formEditActions');
+const { buildEditPostActionsBlock } = require('../blocks/editPostActions');
+const {
+  createSimpleFormMetadata,
+  TRAILER_SWITCH_FORM_EVENT,
+  parseSimpleFormMetadata,
+} = require('../util/simpleFormMetadata');
 
-function buildMeta(submitterUserId) {
+function buildMeta(submitterUserId, extra = {}) {
   return {
     submitterUserId,
     submittedAtIso: new Date().toISOString(),
+    ...extra,
   };
+}
+
+function buildTrailerSlackBlocks(submission, meta) {
+  return [
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: formatPostBodyText(submission, meta) },
+    },
+    buildEditPostActionsBlock(ACTION_EDIT_TRAILER_SWITCH),
+  ];
 }
 
 async function openTrailerSwitchModal(triggerId) {
@@ -58,6 +76,43 @@ async function notifyTrailerSwitchSubmissionFailed(userId, err) {
   }
 }
 
+async function fetchMessage(client, channel, messageTs) {
+  const history = await client.conversations.history({
+    channel,
+    latest: messageTs,
+    oldest: messageTs,
+    inclusive: true,
+    limit: 1,
+  });
+  return history.messages?.[0] || null;
+}
+
+async function updateTrailerSwitchPost(
+  client,
+  channel,
+  messageTs,
+  submission,
+  submissionMeta
+) {
+  const meta = {
+    submitterUserId: submissionMeta.submitterUserId,
+    submittedAtIso: submissionMeta.submittedAtIso,
+    lastEditedAtIso: new Date().toISOString(),
+  };
+  const metadata = createSimpleFormMetadata(
+    TRAILER_SWITCH_FORM_EVENT,
+    submission,
+    submissionMeta
+  );
+  await client.chat.update({
+    channel,
+    ts: messageTs,
+    text: formatPostFallbackText(submission, meta),
+    blocks: buildTrailerSlackBlocks(submission, meta),
+    metadata,
+  });
+}
+
 async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
   const { trailerSwitchChannelId } = loadConfig().slack;
   console.log(`[trailerSwitch] posting to channel ${trailerSwitchChannelId}`);
@@ -79,14 +134,15 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
     attachmentNames: fileAttachments.map((f) => f.filename),
   };
 
-  const meta = buildMeta(submitterUserId);
+  const submissionMeta = buildMeta(submitterUserId);
+  const meta = submissionMeta;
   const fallback = formatPostFallbackText(submission, meta);
-  const blocks = [
-    {
-      type: 'section',
-      text: { type: 'mrkdwn', text: formatPostBodyText(submission, meta) },
-    },
-  ];
+  const blocks = buildTrailerSlackBlocks(submission, meta);
+  const metadata = createSimpleFormMetadata(
+    TRAILER_SWITCH_FORM_EVENT,
+    submission,
+    submissionMeta
+  );
 
   let postRef;
 
@@ -96,6 +152,7 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
         channel: trailerSwitchChannelId,
         text: fallback,
         blocks,
+        metadata,
       });
       postRef = post;
       return {
@@ -130,10 +187,36 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
   }
 }
 
+async function processTrailerSwitchEditSubmission(formFields, userId, editCtx) {
+  const client = slackClient();
+  const message = await fetchMessage(client, editCtx.channel, editCtx.messageTs);
+  const stored = parseSimpleFormMetadata(message);
+  if (!stored) {
+    throw new Error('Could not read the post to update.');
+  }
+  if (stored.submissionMeta.submitterUserId !== userId) {
+    throw new Error('Only the submitter can edit this post.');
+  }
+
+  const submission = {
+    ...formFields,
+    attachmentNames: stored.submission.attachmentNames || [],
+  };
+
+  await updateTrailerSwitchPost(
+    client,
+    editCtx.channel,
+    editCtx.messageTs,
+    submission,
+    stored.submissionMeta
+  );
+}
+
 module.exports = {
   isUserAllowed,
   openTrailerSwitchModal,
   formatViewsOpenError,
   processTrailerSwitchSubmission,
+  processTrailerSwitchEditSubmission,
   notifyTrailerSwitchSubmissionFailed,
 };

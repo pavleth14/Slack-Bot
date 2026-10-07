@@ -25,17 +25,25 @@ function formatTrailerSwitchLine(submission) {
   return `Truck ${truck} ${driver} dropped off ${statusWord} trailer ${trailer} at ${location}${loadSuffix}`;
 }
 
+function formatNotesBlock(submission) {
+  const notes = submission.notes?.trim();
+  if (!notes) return '';
+  return `\n\n*Notes:*\n${notes}`;
+}
+
 function formatPostBodyText(submission, meta) {
   const line = formatTrailerSwitchLine(submission);
-  return `*TRAILER SWITCH*\n\n${formatSubmittedByPrefix(meta)}${line}`;
+  return `*TRAILER SWITCH*\n\n${formatSubmittedByPrefix(meta)}${line}${formatNotesBlock(submission)}`;
 }
 
 function formatPostFallbackText(submission, meta) {
   const line = formatTrailerSwitchLine(submission);
+  const notes = submission.notes?.trim();
   const submitter = meta?.submitterUserId
     ? `Submitted by: <@${meta.submitterUserId}>\n\n`
     : '';
-  return `TRAILER SWITCH\n\n${submitter}${line}`;
+  const notesPlain = notes ? `\nNotes: ${notes}` : '';
+  return `TRAILER SWITCH\n\n${submitter}${line}${notesPlain}`;
 }
 
 function formatEmailSubject(submission) {

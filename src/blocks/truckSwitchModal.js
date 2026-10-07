@@ -14,6 +14,16 @@ const BLOCK_IDS = {
 const ATTACHMENT_ACTION_ID = 'attachments';
 const MAX_ATTACHMENT_FILES = 5;
 
+const {
+  withInitialValue,
+  withInitialRadio,
+} = require('../util/modalInitialValues');
+
+const TEMP_OPTIONS = [
+  { value: 'yes', text: { type: 'plain_text', text: 'Yes — temporary' } },
+  { value: 'no', text: { type: 'plain_text', text: 'No' } },
+];
+
 function buildAttachmentBlock() {
   return {
     type: 'input',
@@ -34,96 +44,101 @@ function buildAttachmentBlock() {
 
 function buildTruckSwitchModal(options = {}) {
   const includeAttachments = options.includeAttachments !== false;
+  const initial = options.initial || {};
+  const isEdit = Boolean(options.isEdit);
+  const tempDefault = initial.switchTemporary === false ? 'no' : 'yes';
 
   const blocks = [
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.driver,
-        label: { type: 'plain_text', text: 'Driver name' },
-        element: {
-          type: 'plain_text_input',
-          action_id: 'driver',
-        },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.oldTruck,
-        label: { type: 'plain_text', text: 'Old Truck Number' },
-        element: {
-          type: 'plain_text_input',
-          action_id: 'old_truck',
-        },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.newTruck,
-        label: { type: 'plain_text', text: 'New Truck Number' },
-        element: {
-          type: 'plain_text_input',
-          action_id: 'new_truck',
-        },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.switchTemporary,
-        label: { type: 'plain_text', text: 'Switch is temporary?' },
-        element: {
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.driver,
+      label: { type: 'plain_text', text: 'Driver name' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'driver' },
+        initial.driver
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.oldTruck,
+      label: { type: 'plain_text', text: 'Old Truck Number' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'old_truck' },
+        initial.oldTruck
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.newTruck,
+      label: { type: 'plain_text', text: 'New Truck Number' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'new_truck' },
+        initial.newTruck
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.switchTemporary,
+      label: { type: 'plain_text', text: 'Switch is temporary?' },
+      element: withInitialRadio(
+        {
           type: 'radio_buttons',
           action_id: 'switch_temporary',
-          options: [
-            {
-              value: 'yes',
-              text: { type: 'plain_text', text: 'Yes — temporary' },
-            },
-            {
-              value: 'no',
-              text: { type: 'plain_text', text: 'No' },
-            },
-          ],
-          initial_option: {
-            value: 'yes',
-            text: { type: 'plain_text', text: 'Yes — temporary' },
-          },
+          options: TEMP_OPTIONS,
+          initial_option: TEMP_OPTIONS[0],
         },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.oldTrailer,
-        optional: true,
-        label: { type: 'plain_text', text: 'Old Trailer Number' },
-        element: {
+        tempDefault,
+        TEMP_OPTIONS
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.oldTrailer,
+      optional: true,
+      label: { type: 'plain_text', text: 'Old Trailer Number' },
+      element: withInitialValue(
+        {
           type: 'plain_text_input',
           action_id: 'old_trailer',
           placeholder: { type: 'plain_text', text: '/ if none' },
         },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.newTrailer,
-        optional: true,
-        label: { type: 'plain_text', text: 'New Trailer Number' },
-        element: {
+        initial.oldTrailer
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.newTrailer,
+      optional: true,
+      label: { type: 'plain_text', text: 'New Trailer Number' },
+      element: withInitialValue(
+        {
           type: 'plain_text_input',
           action_id: 'new_trailer',
           placeholder: { type: 'plain_text', text: '/ if none' },
         },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.requiredUpdates,
-        label: { type: 'plain_text', text: 'Required Updates' },
-        element: {
+        initial.newTrailer
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.requiredUpdates,
+      label: { type: 'plain_text', text: 'Required Updates' },
+      element: withInitialValue(
+        {
           type: 'plain_text_input',
           action_id: 'required_updates',
           initial_value: 'Truck switch.',
         },
-      },
-      {
-        type: 'input',
-        block_id: BLOCK_IDS.locationNote,
-        optional: true,
-        label: { type: 'plain_text', text: 'Location Note' },
-        element: {
+        initial.requiredUpdates || 'Truck switch.'
+      ),
+    },
+    {
+      type: 'input',
+      block_id: BLOCK_IDS.locationNote,
+      optional: true,
+      label: { type: 'plain_text', text: 'Location Note' },
+      element: withInitialValue(
+        {
           type: 'plain_text_input',
           action_id: 'location_note',
           multiline: true,
@@ -132,21 +147,32 @@ function buildTruckSwitchModal(options = {}) {
             text: 'e.g. truck left at shop, city',
           },
         },
-      },
+        initial.locationNote
+      ),
+    },
   ];
 
-  if (includeAttachments) {
+  if (includeAttachments && !isEdit) {
     blocks.push(buildAttachmentBlock());
   }
 
-  return {
+  const view = {
     type: 'modal',
     callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'TRUCK SWITCH' },
-    submit: { type: 'plain_text', text: 'Submit' },
+    title: {
+      type: 'plain_text',
+      text: isEdit ? 'Edit TRUCK SWITCH' : 'TRUCK SWITCH',
+    },
+    submit: { type: 'plain_text', text: isEdit ? 'Save' : 'Submit' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks,
   };
+
+  if (options.privateMetadata) {
+    view.private_metadata = options.privateMetadata;
+  }
+
+  return view;
 }
 
 function parseSubmissionValues(values) {

@@ -1,7 +1,17 @@
 const { WebClient } = require('@slack/web-api');
 const { loadConfig } = require('../config');
 const { buildRoadAccidentModal } = require('../blocks/roadAccidentModal');
-const { formatPostBodyText } = require('../format/roadAccidentMessage');
+const {
+  formatPostBodyText,
+  buildAccidentSlackBlocks,
+} = require('../format/roadAccidentMessage');
+const { ACTION_EDIT_ACCIDENT } = require('../constants/formEditActions');
+const { buildEditPostActionsBlock } = require('../blocks/editPostActions');
+const {
+  createSimpleFormMetadata,
+  ACCIDENT_FORM_EVENT,
+  parseSimpleFormMetadata,
+} = require('../util/simpleFormMetadata');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
 const { sendRoadAccidentEmail } = require('./mail');
 const { isUserAllowed } = require('./access');
@@ -57,6 +67,67 @@ async function notifyAccidentSubmissionFailed(userId, err) {
   }
 }
 
+async function fetchMessage(client, channel, messageTs) {
+  const history = await client.conversations.history({
+    channel,
+    latest: messageTs,
+    oldest: messageTs,
+    inclusive: true,
+    limit: 1,
+  });
+  return history.messages?.[0] || null;
+}
+
+function buildAccidentPostBlocks(submission, meta) {
+  return [...buildAccidentSlackBlocks(submission, meta), buildEditPostActionsBlock(ACTION_EDIT_ACCIDENT)];
+}
+
+async function updateAccidentPost(client, channel, messageTs, submission, submissionMeta) {
+  const meta = {
+    ...buildMeta(submissionMeta.submitterUserId),
+    submittedAtIso: submissionMeta.submittedAtIso,
+    lastEditedAtIso: new Date().toISOString(),
+  };
+  const metadata = createSimpleFormMetadata(
+    ACCIDENT_FORM_EVENT,
+    submission,
+    submissionMeta
+  );
+  const text = formatPostBodyText(submission, meta);
+  await client.chat.update({
+    channel,
+    ts: messageTs,
+    text,
+    blocks: buildAccidentPostBlocks(submission, meta),
+    metadata,
+  });
+}
+
+async function processRoadAccidentEditSubmission(formFields, userId, editCtx) {
+  const client = slackClient();
+  const message = await fetchMessage(client, editCtx.channel, editCtx.messageTs);
+  const stored = parseSimpleFormMetadata(message);
+  if (!stored) {
+    throw new Error('Could not read the post to update.');
+  }
+  if (stored.submissionMeta.submitterUserId !== userId) {
+    throw new Error('Only the submitter can edit this post.');
+  }
+
+  const submission = {
+    ...formFields,
+    attachmentNames: stored.submission.attachmentNames || [],
+  };
+
+  await updateAccidentPost(
+    client,
+    editCtx.channel,
+    editCtx.messageTs,
+    submission,
+    stored.submissionMeta
+  );
+}
+
 async function processRoadAccidentSubmission(rawSubmission, submitterUserId) {
   const { accidentsChannelId } = loadConfig().slack;
   console.log(`[roadAccident] posting to channel ${accidentsChannelId}`);
@@ -78,14 +149,18 @@ async function processRoadAccidentSubmission(rawSubmission, submitterUserId) {
     attachmentNames: fileAttachments.map((f) => f.filename),
   };
 
+  const submissionMeta = {
+    submitterUserId,
+    submittedAtIso: new Date().toISOString(),
+  };
   const meta = buildMeta(submitterUserId);
   const text = formatPostBodyText(submission, meta);
-  const blocks = [
-    {
-      type: 'section',
-      text: { type: 'mrkdwn', text },
-    },
-  ];
+  const blocks = buildAccidentPostBlocks(submission, meta);
+  const metadata = createSimpleFormMetadata(
+    ACCIDENT_FORM_EVENT,
+    submission,
+    submissionMeta
+  );
 
   let postRef;
 
@@ -95,6 +170,7 @@ async function processRoadAccidentSubmission(rawSubmission, submitterUserId) {
         channel: accidentsChannelId,
         text,
         blocks,
+        metadata,
       });
       postRef = post;
       return {
@@ -134,5 +210,6 @@ module.exports = {
   openRoadAccidentModal,
   formatViewsOpenError,
   processRoadAccidentSubmission,
+  processRoadAccidentEditSubmission,
   notifyAccidentSubmissionFailed,
 };

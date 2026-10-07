@@ -16,6 +16,8 @@ const {
   ACTION_REVERT_SAMSARA,
   ACTION_REVERT_TMS,
 } = require('../constants/actions');
+const { ACTION_EDIT_TRUCK_SWITCH } = require('../constants/formEditActions');
+const { buildEditPostActionsBlock } = require('../blocks/editPostActions');
 
 const REVERT_ACTION_BY_SYSTEM = {
   fuel: ACTION_REVERT_FUEL,
@@ -99,6 +101,8 @@ function buildInteractiveBlocks(submission, meta, payload) {
       ],
     });
   }
+
+  blocks.push(buildEditPostActionsBlock(ACTION_EDIT_TRUCK_SWITCH));
 
   return blocks;
 }

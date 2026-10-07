@@ -42,6 +42,18 @@ const OTHER_PARTY_LABELS = Object.fromEntries(
   OTHER_PARTY_OPTIONS.map((o) => [o.value, o.text])
 );
 
+const CHECKBOX_OPTIONS = OTHER_PARTY_OPTIONS.map((o) => ({
+  value: o.value,
+  text: { type: 'plain_text', text: o.text },
+}));
+
+const {
+  withInitialValue,
+  withInitialDate,
+  withInitialTime,
+  withInitialCheckboxes,
+} = require('../util/modalInitialValues');
+
 function yesNoRadio(actionId, initialYes = false) {
   const yes = {
     value: 'yes',
@@ -79,64 +91,87 @@ function buildAttachmentBlock() {
 
 function buildRoadAccidentModal(options = {}) {
   const includeAttachments = options.includeAttachments !== false;
+  const initial = options.initial || {};
+  const isEdit = Boolean(options.isEdit);
 
   const blocks = [
     {
       type: 'input',
       block_id: BLOCK_IDS.accidentDate,
       label: { type: 'plain_text', text: 'Date' },
-      element: { type: 'datepicker', action_id: 'accident_date' },
+      element: withInitialDate(
+        { type: 'datepicker', action_id: 'accident_date' },
+        initial.accidentDate
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.accidentTime,
       label: { type: 'plain_text', text: 'Time' },
-      element: { type: 'timepicker', action_id: 'accident_time' },
+      element: withInitialTime(
+        { type: 'timepicker', action_id: 'accident_time' },
+        initial.accidentTime
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.location,
       label: { type: 'plain_text', text: 'Location' },
-      element: { type: 'plain_text_input', action_id: 'location' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'location' },
+        initial.location
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.driver,
       label: { type: 'plain_text', text: 'Our Driver' },
-      element: { type: 'plain_text_input', action_id: 'driver' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'driver' },
+        initial.driver
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.truck,
       label: { type: 'plain_text', text: 'Our Truck #' },
-      element: { type: 'plain_text_input', action_id: 'truck' },
+      element: withInitialValue(
+        { type: 'plain_text_input', action_id: 'truck' },
+        initial.truck
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.trailer,
       optional: true,
       label: { type: 'plain_text', text: 'Our Trailer #' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'trailer',
-        placeholder: { type: 'plain_text', text: '/ if none' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'trailer',
+          placeholder: { type: 'plain_text', text: '/ if none' },
+        },
+        initial.trailer
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.description,
       label: { type: 'plain_text', text: 'Description' },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'description',
-        multiline: true,
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'description',
+          multiline: true,
+        },
+        initial.description
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.policeInvolved,
       label: { type: 'plain_text', text: 'Police involved?' },
-      element: yesNoRadio('police_involved', false),
+      element: yesNoRadio('police_involved', Boolean(initial.policeInvolved)),
     },
     {
       type: 'input',
@@ -147,17 +182,20 @@ function buildRoadAccidentModal(options = {}) {
         type: 'plain_text',
         text: 'Required when police were involved.',
       },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'police_report_number',
-        placeholder: { type: 'plain_text', text: 'Report number' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'police_report_number',
+          placeholder: { type: 'plain_text', text: 'Report number' },
+        },
+        initial.policeReportNumber
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.towedAway,
       label: { type: 'plain_text', text: 'Towed away?' },
-      element: yesNoRadio('towed_away', false),
+      element: yesNoRadio('towed_away', Boolean(initial.towedAway)),
     },
     {
       type: 'input',
@@ -168,30 +206,33 @@ function buildRoadAccidentModal(options = {}) {
         type: 'plain_text',
         text: 'Required when unit was towed.',
       },
-      element: {
-        type: 'plain_text_input',
-        action_id: 'towing_info',
-        multiline: true,
-        placeholder: { type: 'plain_text', text: 'Company, destination, etc.' },
-      },
+      element: withInitialValue(
+        {
+          type: 'plain_text_input',
+          action_id: 'towing_info',
+          multiline: true,
+          placeholder: { type: 'plain_text', text: 'Company, destination, etc.' },
+        },
+        initial.towingInfo
+      ),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.citationIssued,
       label: { type: 'plain_text', text: 'Citation issued?' },
-      element: yesNoRadio('citation_issued', false),
+      element: yesNoRadio('citation_issued', Boolean(initial.citationIssued)),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.ambulanceAtScene,
       label: { type: 'plain_text', text: 'Ambulance at the scene?' },
-      element: yesNoRadio('ambulance_at_scene', false),
+      element: yesNoRadio('ambulance_at_scene', Boolean(initial.ambulanceAtScene)),
     },
     {
       type: 'input',
       block_id: BLOCK_IDS.fuelSpillCleanup,
       label: { type: 'plain_text', text: 'Fuel spill / clean-up?' },
-      element: yesNoRadio('fuel_spill_cleanup', false),
+      element: yesNoRadio('fuel_spill_cleanup', Boolean(initial.fuelSpillCleanup)),
     },
     {
       type: 'section',
@@ -205,29 +246,39 @@ function buildRoadAccidentModal(options = {}) {
       block_id: BLOCK_IDS.otherPartyCollected,
       optional: true,
       label: { type: 'plain_text', text: 'Collected from other party' },
-      element: {
-        type: 'checkboxes',
-        action_id: 'other_party_collected',
-        options: OTHER_PARTY_OPTIONS.map((o) => ({
-          value: o.value,
-          text: { type: 'plain_text', text: o.text },
-        })),
-      },
+      element: withInitialCheckboxes(
+        {
+          type: 'checkboxes',
+          action_id: 'other_party_collected',
+          options: CHECKBOX_OPTIONS,
+        },
+        initial.otherPartyCollected,
+        CHECKBOX_OPTIONS
+      ),
     },
   ];
 
-  if (includeAttachments) {
+  if (includeAttachments && !isEdit) {
     blocks.push(buildAttachmentBlock());
   }
 
-  return {
+  const view = {
     type: 'modal',
     callback_id: CALLBACK_ID,
-    title: { type: 'plain_text', text: 'Accident reporting' },
-    submit: { type: 'plain_text', text: 'Submit' },
+    title: {
+      type: 'plain_text',
+      text: isEdit ? 'Edit accident report' : 'Accident reporting',
+    },
+    submit: { type: 'plain_text', text: isEdit ? 'Save' : 'Submit' },
     close: { type: 'plain_text', text: 'Cancel' },
     blocks,
   };
+
+  if (options.privateMetadata) {
+    view.private_metadata = options.privateMetadata;
+  }
+
+  return view;
 }
 
 function readRadio(values, blockId, actionId, defaultNo = true) {
