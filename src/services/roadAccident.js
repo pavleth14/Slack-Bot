@@ -12,6 +12,7 @@ const {
   ACCIDENT_FORM_EVENT,
   parseSimpleFormMetadata,
 } = require('../util/simpleFormMetadata');
+const { resolveSimpleFormEditStore } = require('../util/formEditContext');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
 const { sendRoadAccidentEmail } = require('./mail');
 const { isUserAllowed } = require('./access');
@@ -67,17 +68,6 @@ async function notifyAccidentSubmissionFailed(userId, err) {
   }
 }
 
-async function fetchMessage(client, channel, messageTs) {
-  const history = await client.conversations.history({
-    channel,
-    latest: messageTs,
-    oldest: messageTs,
-    inclusive: true,
-    limit: 1,
-  });
-  return history.messages?.[0] || null;
-}
-
 function buildAccidentPostBlocks(submission, meta) {
   return [...buildAccidentSlackBlocks(submission, meta), buildEditPostActionsBlock(ACTION_EDIT_ACCIDENT)];
 }
@@ -105,18 +95,16 @@ async function updateAccidentPost(client, channel, messageTs, submission, submis
 
 async function processRoadAccidentEditSubmission(formFields, userId, editCtx) {
   const client = slackClient();
-  const message = await fetchMessage(client, editCtx.channel, editCtx.messageTs);
-  const stored = parseSimpleFormMetadata(message);
-  if (!stored) {
-    throw new Error('Could not read the post to update.');
-  }
-  if (stored.submissionMeta.submitterUserId !== userId) {
-    throw new Error('Only the submitter can edit this post.');
-  }
+  const { submissionMeta, attachmentNames } = await resolveSimpleFormEditStore(
+    editCtx,
+    userId,
+    client,
+    parseSimpleFormMetadata
+  );
 
   const submission = {
     ...formFields,
-    attachmentNames: stored.submission.attachmentNames || [],
+    attachmentNames,
   };
 
   await updateAccidentPost(
@@ -124,7 +112,7 @@ async function processRoadAccidentEditSubmission(formFields, userId, editCtx) {
     editCtx.channel,
     editCtx.messageTs,
     submission,
-    stored.submissionMeta
+    submissionMeta
   );
 }
 

@@ -95,12 +95,27 @@ async function handleFormEditButton(payload) {
   }
 
   const form = FORM_BY_EDIT_ACTION[actionId];
-  const privateMetadata = buildEditPrivateMetadata({
-    form,
-    channel,
-    messageTs,
-    submitterUserId: userId,
-  });
+  let privateMetadata;
+  try {
+    privateMetadata = buildEditPrivateMetadata({
+      form,
+      channel,
+      messageTs,
+      submitterUserId: userId,
+      submissionMeta: parsed.submissionMeta,
+      preserve: {
+        attachmentNames: parsed.submission.attachmentNames || [],
+      },
+      truckState: parsed.fullState,
+    });
+  } catch (err) {
+    await postEditEphemeral(
+      slackClient(),
+      payload,
+      err.message || 'Could not open the edit form.'
+    );
+    return;
+  }
 
   const { enableModalFileUpload } = loadConfig().slack;
   let view;

@@ -16,6 +16,7 @@ const {
   LOADS_FORM_EVENT,
   parseSimpleFormMetadata,
 } = require('../util/simpleFormMetadata');
+const { resolveSimpleFormEditStore } = require('../util/formEditContext');
 
 function buildMeta(submitterUserId, extra = {}) {
   return {
@@ -64,17 +65,6 @@ async function notifyLoadsSubmissionFailed(userId, err) {
   } catch (dmErr) {
     console.error('[loads] failed to DM submitter:', dmErr.message);
   }
-}
-
-async function fetchMessage(client, channel, messageTs) {
-  const history = await client.conversations.history({
-    channel,
-    latest: messageTs,
-    oldest: messageTs,
-    inclusive: true,
-    limit: 1,
-  });
-  return history.messages?.[0] || null;
 }
 
 async function updateLoadsPost(client, channel, messageTs, submission, submissionMeta) {
@@ -129,21 +119,19 @@ async function processLoadsSubmission(submission, submitterUserId) {
 
 async function processLoadsEditSubmission(submission, userId, editCtx) {
   const client = slackClient();
-  const message = await fetchMessage(client, editCtx.channel, editCtx.messageTs);
-  const stored = parseSimpleFormMetadata(message);
-  if (!stored) {
-    throw new Error('Could not read the post to update.');
-  }
-  if (stored.submissionMeta.submitterUserId !== userId) {
-    throw new Error('Only the submitter can edit this post.');
-  }
+  const { submissionMeta } = await resolveSimpleFormEditStore(
+    editCtx,
+    userId,
+    client,
+    parseSimpleFormMetadata
+  );
 
   await updateLoadsPost(
     client,
     editCtx.channel,
     editCtx.messageTs,
     submission,
-    stored.submissionMeta
+    submissionMeta
   );
 }
 

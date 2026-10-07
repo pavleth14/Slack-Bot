@@ -28,6 +28,7 @@ const {
   teamLabelForSystem,
 } = require('./systemTeamAccess');
 const { isSystemChecked, createSystemCheck } = require('../util/truckSwitchChecks');
+const { resolveTruckSwitchEditState } = require('../util/formEditContext');
 
 function buildMeta(submitterUserId, extra = {}) {
   const {
@@ -446,31 +447,14 @@ async function handleTruckSwitchConfirmSubmission(payload) {
   return { ok: true };
 }
 
-async function fetchMessageForEdit(client, channel, messageTs) {
-  const history = await client.conversations.history({
-    channel,
-    latest: messageTs,
-    oldest: messageTs,
-    inclusive: true,
-    limit: 1,
-  });
-  return history.messages?.[0] || null;
-}
-
 async function processTruckSwitchEditSubmission(rawSubmission, userId, editCtx) {
   const client = slackClient();
-  const message = await fetchMessageForEdit(
+  const state = await resolveTruckSwitchEditState(
+    editCtx,
+    userId,
     client,
-    editCtx.channel,
-    editCtx.messageTs
+    parsePostMetadata
   );
-  const state = parsePostMetadata(message);
-  if (!state?.submissionMeta?.submitterUserId) {
-    throw new Error('Could not read the post to update.');
-  }
-  if (state.submissionMeta.submitterUserId !== userId) {
-    throw new Error('Only the submitter can edit this post.');
-  }
 
   const { attachmentFiles: _ignored, ...formFields } = rawSubmission;
   state.submission = {

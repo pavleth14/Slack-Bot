@@ -21,6 +21,7 @@ const {
   TRAILER_SWITCH_FORM_EVENT,
   parseSimpleFormMetadata,
 } = require('../util/simpleFormMetadata');
+const { resolveSimpleFormEditStore } = require('../util/formEditContext');
 
 function buildMeta(submitterUserId, extra = {}) {
   return {
@@ -74,17 +75,6 @@ async function notifyTrailerSwitchSubmissionFailed(userId, err) {
   } catch (dmErr) {
     console.error('[trailerSwitch] failed to DM submitter:', dmErr.message);
   }
-}
-
-async function fetchMessage(client, channel, messageTs) {
-  const history = await client.conversations.history({
-    channel,
-    latest: messageTs,
-    oldest: messageTs,
-    inclusive: true,
-    limit: 1,
-  });
-  return history.messages?.[0] || null;
 }
 
 async function updateTrailerSwitchPost(
@@ -189,18 +179,16 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
 
 async function processTrailerSwitchEditSubmission(formFields, userId, editCtx) {
   const client = slackClient();
-  const message = await fetchMessage(client, editCtx.channel, editCtx.messageTs);
-  const stored = parseSimpleFormMetadata(message);
-  if (!stored) {
-    throw new Error('Could not read the post to update.');
-  }
-  if (stored.submissionMeta.submitterUserId !== userId) {
-    throw new Error('Only the submitter can edit this post.');
-  }
+  const { submissionMeta, attachmentNames } = await resolveSimpleFormEditStore(
+    editCtx,
+    userId,
+    client,
+    parseSimpleFormMetadata
+  );
 
   const submission = {
     ...formFields,
-    attachmentNames: stored.submission.attachmentNames || [],
+    attachmentNames,
   };
 
   await updateTrailerSwitchPost(
@@ -208,7 +196,7 @@ async function processTrailerSwitchEditSubmission(formFields, userId, editCtx) {
     editCtx.channel,
     editCtx.messageTs,
     submission,
-    stored.submissionMeta
+    submissionMeta
   );
 }
 
