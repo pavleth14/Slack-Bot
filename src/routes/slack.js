@@ -67,6 +67,18 @@ const {
   notifyClaimsSubmissionFailed,
   handleClaimsSelectionAction,
 } = require('../services/claims');
+const {
+  CALLBACK_ID: DOT_CALLBACK_ID,
+  BLOCK_IDS: DOT_BLOCK_IDS,
+  parseSubmissionValues: parseDotSubmissionValues,
+} = require('../blocks/dotModal');
+const {
+  openDotModal,
+  processDotSubmission,
+  processDotEditSubmission,
+  notifyDotSubmissionFailed,
+  handleDotSelectionAction,
+} = require('../services/dot');
 
 const router = express.Router();
 
@@ -141,6 +153,13 @@ router.post('/commands/claims', async (req, res) => {
   });
 });
 
+router.post('/commands/dot', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openDotModal,
+    commandLabel: 'dot',
+  });
+});
+
 router.post('/interactions', async (req, res) => {
   let payload;
   try {
@@ -164,6 +183,14 @@ router.post('/interactions', async (req, res) => {
         await handleClaimsSelectionAction(payload);
       } catch (err) {
         console.error('[interactions] claims selection failed:', err.message, err.data || '');
+      }
+      return res.status(200).send('');
+    }
+    if (typeof actionId === 'string' && actionId.startsWith('dot_sel_')) {
+      try {
+        await handleDotSelectionAction(payload);
+      } catch (err) {
+        console.error('[interactions] dot selection failed:', err.message, err.data || '');
       }
       return res.status(200).send('');
     }
@@ -384,6 +411,51 @@ router.post('/interactions', async (req, res) => {
     processTrailerSwitchSubmission(data, userId).catch((err) => {
       console.error('[interactions] trailerswitch failed:', err.message);
       notifyTrailerSwitchSubmissionFailed(userId, err).catch(() => {});
+    });
+    return;
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    payload.view?.callback_id === DOT_CALLBACK_ID
+  ) {
+    const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
+
+    if (!isUserAllowed(userId)) {
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [DOT_BLOCK_IDS.driverName]: 'You are not allowed to submit this form.',
+        },
+      });
+    }
+
+    const { data, errors } = parseDotSubmissionValues(payload.view.state.values);
+    if (Object.keys(errors).length > 0) {
+      return res.json({ response_action: 'errors', errors });
+    }
+
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [DOT_BLOCK_IDS.driverName]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processDotEditSubmission(data, userId, editCtx).catch((err) => {
+        console.error('[interactions] dot edit failed:', err.message);
+        notifyDotSubmissionFailed(userId, err).catch(() => {});
+      });
+      return;
+    }
+
+    res.json({ response_action: 'clear' });
+    processDotSubmission(data, userId).catch((err) => {
+      console.error('[interactions] dot failed:', err.message);
+      notifyDotSubmissionFailed(userId, err).catch(() => {});
     });
     return;
   }

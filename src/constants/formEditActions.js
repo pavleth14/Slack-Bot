@@ -2,12 +2,14 @@ const ACTION_EDIT_TRUCK_SWITCH = 'form_edit_truck_switch';
 const ACTION_EDIT_ACCIDENT = 'form_edit_accident';
 const ACTION_EDIT_LOADS = 'form_edit_loads';
 const ACTION_EDIT_TRAILER_SWITCH = 'form_edit_trailer_switch';
+const ACTION_EDIT_DOT = 'form_edit_dot';
 
 const FORM_EDIT_ACTIONS = new Set([
   ACTION_EDIT_TRUCK_SWITCH,
   ACTION_EDIT_ACCIDENT,
   ACTION_EDIT_LOADS,
   ACTION_EDIT_TRAILER_SWITCH,
+  ACTION_EDIT_DOT,
 ]);
 
 const FORM_BY_EDIT_ACTION = {
@@ -15,6 +17,7 @@ const FORM_BY_EDIT_ACTION = {
   [ACTION_EDIT_ACCIDENT]: 'accident',
   [ACTION_EDIT_LOADS]: 'loads',
   [ACTION_EDIT_TRAILER_SWITCH]: 'trailer_switch',
+  [ACTION_EDIT_DOT]: 'dot',
 };
 
 module.exports = {
@@ -22,6 +25,7 @@ module.exports = {
   ACTION_EDIT_ACCIDENT,
   ACTION_EDIT_LOADS,
   ACTION_EDIT_TRAILER_SWITCH,
+  ACTION_EDIT_DOT,
   FORM_EDIT_ACTIONS,
   FORM_BY_EDIT_ACTION,
 };

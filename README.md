@@ -22,6 +22,12 @@ Three-step modal for ongoing claim management (no email). Posts to `SLACK_CLAIMS
 
 The post shows 🟢 paid and closed, 🟡 ongoing, or 🔴 rejected. Checkbox changes are written back onto the message so the whole channel sees the same boxes. Several boxes in a group can stay checked. Set `POST_SELECTION_MODE` to `exclusive` in `src/services/claimsSelection.js` when a group should keep only one box.
 
+## `/dot`
+
+**DOT Roadside Inspection Report** modal → **`SLACK_DOT_CHANNEL_ID`** when set; otherwise **`SLACK_CHANNEL_ID`** (bot-test). Invite the bot. Slash URL: `https://<host>/slack/commands/dot`.
+
+Sections: driver/truck/trailer, date & time, location; inspection level (I–III/Other) and result; violation description and subject (driver/truck/trailer); inspection report upload (thread); citation yes/no; current status; additional notes. Checkbox groups appear on the channel post (shared with the channel). **Edit submission** (submitter only) updates text fields; post checkboxes can still be toggled on the message.
+
 ## `/trailerswitch`
 
 Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only** + email (same `MAIL_ENABLED` behavior as `/loads`). Invite the bot to that channel.
@@ -44,11 +50,11 @@ No database. Message state lives in Slack **message metadata**.
 
 - **Scopes:** `commands`, `chat:write`, `usergroups:read` (team check for Fuel/TMS/Samsara), `channels:history` (public channels), **`groups:history`** (private channels — form posts and truck-switch confirm), optional **`metadata.message:read`** (reading message metadata from history). For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
-- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`, `https://<host>/slack/commands/trailerswitch`, `https://<host>/slack/commands/claims`
+- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`, `https://<host>/slack/commands/trailerswitch`, `https://<host>/slack/commands/claims`, `https://<host>/slack/commands/dot`
 
 ## Environment
 
-- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`)
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`); `SLACK_DOT_CHANNEL_ID` (`/dot`, else `SLACK_CHANNEL_ID`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)

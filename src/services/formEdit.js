@@ -19,6 +19,8 @@ const { buildTruckSwitchModal } = require('../blocks/truckSwitchModal');
 const { buildRoadAccidentModal } = require('../blocks/roadAccidentModal');
 const { buildLoadsModal } = require('../blocks/loadsModal');
 const { buildTrailerSwitchModal } = require('../blocks/trailerSwitchModal');
+const { buildDotModal } = require('../blocks/dotModal');
+const { loadDotRecordFromMessage } = require('./dot');
 
 async function postEditEphemeral(client, payload, text) {
   const channel = payload.channel?.id;
@@ -32,6 +34,8 @@ async function postEditEphemeral(client, payload, text) {
 }
 
 function getSubmitterFromMessage(message, actionId) {
+  const formHint = FORM_BY_EDIT_ACTION[actionId];
+
   const truckState = parsePostMetadata(message);
   if (truckState?.submissionMeta?.submitterUserId) {
     return {
@@ -39,6 +43,17 @@ function getSubmitterFromMessage(message, actionId) {
       submission: truckState.submission,
       submissionMeta: truckState.submissionMeta,
       fullState: truckState,
+    };
+  }
+
+  if (formHint === 'dot') {
+    const record = loadDotRecordFromMessage(message);
+    if (!record) return null;
+    return {
+      form: 'dot',
+      submission: record.submission,
+      submissionMeta: record.meta,
+      dotId: record.dotId,
     };
   }
 
@@ -105,6 +120,7 @@ async function handleFormEditButton(payload) {
       submissionMeta: parsed.submissionMeta,
       preserve: {
         attachmentNames: parsed.submission.attachmentNames || [],
+        dotId: parsed.dotId,
       },
       truckState: parsed.fullState,
     });
@@ -142,6 +158,13 @@ async function handleFormEditButton(payload) {
     });
   } else if (form === 'trailer_switch') {
     view = buildTrailerSwitchModal({
+      includeAttachments: false,
+      isEdit: true,
+      initial: parsed.submission,
+      privateMetadata,
+    });
+  } else if (form === 'dot') {
+    view = buildDotModal({
       includeAttachments: false,
       isEdit: true,
       initial: parsed.submission,

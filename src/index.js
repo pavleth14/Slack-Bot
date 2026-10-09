@@ -33,6 +33,7 @@ app.listen(port, () => {
   console.log(`  Slash cmd:   POST /slack/commands/loads`);
   console.log(`  Slash cmd:   POST /slack/commands/trailerswitch`);
   console.log(`  Slash cmd:   POST /slack/commands/claims`);
+  console.log(`  Slash cmd:   POST /slack/commands/dot`);
   console.log(`  Interactive: POST /slack/interactions`);
   try {
     const { slack } = loadConfig();
@@ -45,6 +46,7 @@ app.listen(port, () => {
     console.log(
       `  Post channels: /claims → ${slack.claimsChannelId}`
     );
+    console.log(`  Post channels: /dot → ${slack.dotChannelId}`);
     console.log(
       `  Email: ${loadConfig().mail.enabled ? 'enabled (Slack + mail)' : 'disabled (Slack only)'}`
     );
