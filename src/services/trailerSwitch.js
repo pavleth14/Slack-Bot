@@ -6,7 +6,7 @@ const {
   formatPostFallbackText,
 } = require('../format/trailerSwitchMessage');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
-const { sendTrailerSwitchEmail } = require('./mail');
+const { sendTrailerSwitchEmail, sendTrailerSwitchReplyEmail } = require('./mail');
 const { isUserAllowed } = require('./access');
 const {
   SlackFileError,
@@ -77,6 +77,18 @@ async function notifyTrailerSwitchSubmissionFailed(userId, err) {
   }
 }
 
+function trailerSubmissionMetaRecord(submissionMeta) {
+  return {
+    submitterUserId: submissionMeta.submitterUserId,
+    submittedAtIso: submissionMeta.submittedAtIso,
+    emailMessageId: submissionMeta.emailMessageId || undefined,
+    emailSubject: submissionMeta.emailSubject || undefined,
+    ...(submissionMeta.lastEditedAtIso && {
+      lastEditedAtIso: submissionMeta.lastEditedAtIso,
+    }),
+  };
+}
+
 async function updateTrailerSwitchPost(
   client,
   channel,
@@ -84,15 +96,19 @@ async function updateTrailerSwitchPost(
   submission,
   submissionMeta
 ) {
-  const meta = {
-    submitterUserId: submissionMeta.submitterUserId,
-    submittedAtIso: submissionMeta.submittedAtIso,
+  const record = trailerSubmissionMetaRecord({
+    ...submissionMeta,
     lastEditedAtIso: new Date().toISOString(),
+  });
+  const meta = {
+    submitterUserId: record.submitterUserId,
+    submittedAtIso: record.submittedAtIso,
+    lastEditedAtIso: record.lastEditedAtIso,
   };
   const metadata = createSimpleFormMetadata(
     TRAILER_SWITCH_FORM_EVENT,
     submission,
-    submissionMeta
+    record
   );
   await client.chat.update({
     channel,
@@ -136,7 +152,7 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
 
   let postRef;
 
-  await deliverSlackAndEmail(
+  const mailResult = await deliverSlackAndEmail(
     async () => {
       const post = await client.chat.postMessage({
         channel: trailerSwitchChannelId,
@@ -161,6 +177,22 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
       attachments: fileAttachments,
     }
   );
+
+  if (mailResult.messageId) {
+    submissionMeta.emailMessageId = mailResult.messageId;
+    submissionMeta.emailSubject = mailResult.subject;
+    await client.chat.update({
+      channel: postRef.channel,
+      ts: postRef.ts,
+      text: fallback,
+      blocks,
+      metadata: createSimpleFormMetadata(
+        TRAILER_SWITCH_FORM_EVENT,
+        submission,
+        trailerSubmissionMetaRecord(submissionMeta)
+      ),
+    });
+  }
 
   if (fileAttachments.length) {
     try {
@@ -198,6 +230,35 @@ async function processTrailerSwitchEditSubmission(formFields, userId, editCtx) {
     submission,
     submissionMeta
   );
+
+  await maybeSendTrailerEditReplyEmail(submission, submissionMeta);
+}
+
+async function maybeSendTrailerEditReplyEmail(submission, submissionMeta) {
+  const { mail } = loadConfig();
+  if (!mail.enabled) return;
+  if (!submissionMeta.emailMessageId || !submissionMeta.emailSubject) return;
+
+  const displayMeta = {
+    submitterUserId: submissionMeta.submitterUserId,
+    submittedAtIso: submissionMeta.submittedAtIso,
+  };
+  const subject = /^Re:/i.test(submissionMeta.emailSubject)
+    ? submissionMeta.emailSubject
+    : `Re: ${submissionMeta.emailSubject}`;
+
+  try {
+    const result = await sendTrailerSwitchReplyEmail(submission, displayMeta, {
+      inReplyTo: submissionMeta.emailMessageId,
+      references: submissionMeta.emailMessageId,
+      subject,
+    });
+    if (!result.sent) {
+      console.error('[trailerSwitch] edit reply email failed:', result.reason);
+    }
+  } catch (err) {
+    console.error('[trailerSwitch] edit reply email failed:', err.message);
+  }
 }
 
 module.exports = {

@@ -6,7 +6,6 @@ const {
   formatPostFallbackText,
 } = require('../format/loadsMessage');
 const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
-const { sendLoadsEmail } = require('./mail');
 const { isUserAllowed } = require('./access');
 const { formatViewsOpenError } = require('./truckSwitch');
 const { ACTION_EDIT_LOADS } = require('../constants/formEditActions');
@@ -113,7 +112,7 @@ async function processLoadsSubmission(submission, submitterUserId) {
     },
     submission,
     meta,
-    { sendEmail: sendLoadsEmail }
+    { skipEmail: true }
   );
 }
 

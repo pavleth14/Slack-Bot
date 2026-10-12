@@ -158,6 +158,33 @@ async function sendLoadsEmail(submission, meta) {
   };
 }
 
+async function sendTrailerSwitchReplyEmail(
+  submission,
+  meta,
+  { inReplyTo, references, subject }
+) {
+  const { mail } = loadConfig();
+  if (!mail.departmentEmails.length) {
+    return { sent: false, reason: 'no_recipients' };
+  }
+
+  const transport = createTransport();
+  if (!transport) {
+    return { sent: false, reason: 'no_smtp' };
+  }
+
+  const info = await transport.sendMail({
+    from: mail.from,
+    to: mail.departmentEmails.join(','),
+    subject,
+    html: formatTrailerSwitchEmailHtml(submission, meta, { edited: true }),
+    inReplyTo,
+    references,
+  });
+
+  return { sent: true, messageId: info.messageId };
+}
+
 async function sendTrailerSwitchEmail(submission, meta, options = {}) {
   const { mail } = loadConfig();
   if (!mail.departmentEmails.length) {
@@ -199,4 +226,5 @@ module.exports = {
   sendRoadAccidentEmail,
   sendLoadsEmail,
   sendTrailerSwitchEmail,
+  sendTrailerSwitchReplyEmail,
 };

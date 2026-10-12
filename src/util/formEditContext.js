@@ -18,6 +18,12 @@ function buildEditPrivateMetadata({
     submissionMeta: {
       submitterUserId: submissionMeta.submitterUserId,
       submittedAtIso: submissionMeta.submittedAtIso,
+      ...(submissionMeta.emailMessageId && {
+        emailMessageId: submissionMeta.emailMessageId,
+      }),
+      ...(submissionMeta.emailSubject && {
+        emailSubject: submissionMeta.emailSubject,
+      }),
     },
   };
 

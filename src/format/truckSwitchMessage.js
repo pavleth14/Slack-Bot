@@ -169,8 +169,8 @@ function formatEmailHtml(submission, meta, options = {}) {
   text += `\n*TMS:* ${updateFlags?.tms ? 'UPDATED' : 'Pending'}`;
   text += `\n\n${formatWorkCompletedLine(workDone).replace(/\*/g, '')}`;
 
-  if (phase === 2 && workDone) {
-    text += '\nAll systems updated.';
+  if (workDone) {
+    text += '\nAll systems updated — notification sent when work was completed.';
   }
 
   const plain = text

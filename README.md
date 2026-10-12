@@ -2,7 +2,7 @@
 
 ## `/truckswitch`
 
-Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS** via **checkboxes on the post**; the message updates with **UPDATED** and *Checked by @user*. When all three are checked: **Work Completed** :white_check_mark: and a **reply email** threads off the first message.
+Modal → channel post (Slack). Teams mark **Fuel Card**, **Samsara**, and **TMS** via **checkboxes on the post**; the message updates with **UPDATED** and *Checked by @user*. When all three are checked: **Work Completed** :white_check_mark: and **one email** to departments (`MAIL_ENABLED=true`).
 
 ## `/accident`
 
@@ -10,7 +10,7 @@ Modal → channel post + email. Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 ## `/loads`
 
-Modal: date, confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** + email. Invite the bot to that channel. Post format:
+Modal: date, confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** (Slack only; no email). Invite the bot to that channel. Post format:
 
 `MM-DD-YYYY RC {confirmation} {driver} {truck}`
 
@@ -30,7 +30,7 @@ Sections: driver/truck/trailer, date & time, location; inspection level (I–III
 
 ## `/trailerswitch`
 
-Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only** + email (same `MAIL_ENABLED` behavior as `/loads`). Invite the bot to that channel.
+Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only**. Email on submit when `MAIL_ENABLED=true`; **Edit submission** sends a **reply** on the same email thread. Invite the bot to that channel.
 
 Post body is one sentence, e.g.:
 
@@ -38,11 +38,13 @@ Post body is one sentence, e.g.:
 
 ## Workflow
 
-1. Submit form → post in `SLACK_TRUCKSWITCH_CHANNEL_ID` (+ email when `MAIL_ENABLED=true`). Optional **attachments** go to **email** and a **thread reply** on the post.
+1. Submit form → post in `SLACK_TRUCKSWITCH_CHANNEL_ID` (Slack only on submit). Optional **attachments** go to a **thread** on the post.
 2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each pending row has **Mark updated** (only that team). Updated rows show **Revert**.
 3. **Mark updated** or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** closes the modal (post unchanged).
-4. All three checked → Work Completed :white_check_mark: + reply email (`In-Reply-To` first message).
+4. All three checked → Work Completed :white_check_mark: + **one email** to `DEPARTMENT_EMAILS` when `MAIL_ENABLED=true` (not sent on initial submit).
 5. Long **thread replies** remain manual.
+
+**Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post, edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims` — Slack only (for now).
 
 No database. Message state lives in Slack **message metadata**.
 

@@ -33,6 +33,9 @@ async function deliverSlackAndEmail(slackPost, submission, meta, mailOptions = {
   }
 
   const { mail } = loadConfig();
+  if (mailOptions.skipEmail) {
+    return { sent: false, skipped: true, reason: 'skip_email' };
+  }
   if (!mail.enabled) {
     return { sent: false, skipped: true, reason: 'mail_disabled' };
   }

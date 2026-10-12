@@ -8,7 +8,7 @@ const {
   uploadFilesToThread,
 } = require('./slackFiles');
 const { isUserAllowed } = require('./access');
-const { sendTruckSwitchReplyEmail } = require('./mail');
+const { sendTruckSwitchEmail } = require('./mail');
 const {
   createPostMetadata,
   parsePostMetadata,
@@ -123,7 +123,7 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
 
   let postRef;
 
-  const mailResult = await deliverSlackAndEmail(
+  await deliverSlackAndEmail(
     async () => {
       const post = await client.chat.postMessage({
         channel: truckSwitchChannelId,
@@ -143,7 +143,7 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
     },
     submission,
     meta,
-    { phase: 1, attachments: fileAttachments }
+    { skipEmail: true }
   );
 
   try {
@@ -156,11 +156,6 @@ async function processTruckSwitchSubmission(rawSubmission, submitterUserId) {
     );
   } catch (err) {
     console.error('[truckSwitch] thread file upload failed:', err.message);
-  }
-
-  if (mailResult.messageId) {
-    payload.emailMessageId = mailResult.messageId;
-    payload.emailSubject = mailResult.subject;
   }
 
   const updatedMetadata = {
@@ -217,7 +212,9 @@ async function maybeSendWorkCompleteEmail(client, channel, messageTs, state) {
   if (!allSystemsUpdated(state.checks) || state.workCompleteMailSent) {
     return;
   }
-  if (!state.emailMessageId || !state.emailSubject) {
+
+  const { mail } = loadConfig();
+  if (!mail.enabled) {
     return;
   }
 
@@ -225,23 +222,19 @@ async function maybeSendWorkCompleteEmail(client, channel, messageTs, state) {
   const meta = buildStateMeta(state, state.submissionMeta?.submitterUserId || '');
 
   try {
-    const replySubject = /^Re:/i.test(state.emailSubject)
-      ? state.emailSubject
-      : `Re: ${state.emailSubject}`;
-    const replyResult = await sendTruckSwitchReplyEmail(submission, meta, {
-      inReplyTo: state.emailMessageId,
-      references: state.emailMessageId,
-      subject: replySubject,
+    const mailResult = await sendTruckSwitchEmail(submission, meta, {
       checks: state.checks,
     });
-    if (!replyResult.sent) {
-      console.error('[truckSwitch] work-complete reply email failed:', replyResult.reason);
+    if (!mailResult.sent) {
+      console.error('[truckSwitch] work-complete email failed:', mailResult.reason);
       return;
     }
     state.workCompleteMailSent = true;
+    state.emailMessageId = mailResult.messageId;
+    state.emailSubject = mailResult.subject;
     await syncPostMessage(client, channel, messageTs, state);
   } catch (err) {
-    console.error('[truckSwitch] work-complete reply email failed:', err.message);
+    console.error('[truckSwitch] work-complete email failed:', err.message);
   }
 }
 
