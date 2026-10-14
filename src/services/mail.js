@@ -17,6 +17,13 @@ const {
   formatEmailSubject: formatTrailerSwitchEmailSubject,
 } = require('../format/trailerSwitchMessage');
 
+function trailerSwitchRecipients(mail) {
+  if (mail.trailerSwitchEmails.length) {
+    return mail.trailerSwitchEmails;
+  }
+  return mail.departmentEmails;
+}
+
 function createTransport() {
   const { mail } = loadConfig();
   if (!mail.smtp.host) {
@@ -164,7 +171,8 @@ async function sendTrailerSwitchReplyEmail(
   { inReplyTo, references, subject }
 ) {
   const { mail } = loadConfig();
-  if (!mail.departmentEmails.length) {
+  const to = trailerSwitchRecipients(mail);
+  if (!to.length) {
     return { sent: false, reason: 'no_recipients' };
   }
 
@@ -175,7 +183,7 @@ async function sendTrailerSwitchReplyEmail(
 
   const info = await transport.sendMail({
     from: mail.from,
-    to: mail.departmentEmails.join(','),
+    to: to.join(','),
     subject,
     html: formatTrailerSwitchEmailHtml(submission, meta, { edited: true }),
     inReplyTo,
@@ -187,8 +195,11 @@ async function sendTrailerSwitchReplyEmail(
 
 async function sendTrailerSwitchEmail(submission, meta, options = {}) {
   const { mail } = loadConfig();
-  if (!mail.departmentEmails.length) {
-    console.warn('[mail] DEPARTMENT_EMAILS is empty; skipping email.');
+  const to = trailerSwitchRecipients(mail);
+  if (!to.length) {
+    console.warn(
+      '[mail] SLACK_TRAILERSWITCH_EMAILS and DEPARTMENT_EMAILS are empty; skipping trailer switch email.'
+    );
     return { sent: false, reason: 'no_recipients' };
   }
 
@@ -207,7 +218,7 @@ async function sendTrailerSwitchEmail(submission, meta, options = {}) {
 
   const info = await transport.sendMail({
     from: mail.from,
-    to: mail.departmentEmails.join(','),
+    to: to.join(','),
     subject,
     html: formatTrailerSwitchEmailHtml(submission, meta),
     attachments: mailAttachments.length ? mailAttachments : undefined,

@@ -30,7 +30,7 @@ Sections: driver/truck/trailer, date & time, location; inspection level (I–III
 
 ## `/trailerswitch`
 
-Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only**. Email on submit when `MAIL_ENABLED=true`; **Edit submission** sends a **reply** on the same email thread. Invite the bot to that channel.
+Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only**. Email on submit when `MAIL_ENABLED=true` to **`SLACK_TRAILERSWITCH_EMAILS`** (if set), else `DEPARTMENT_EMAILS`; **Edit submission** sends a **reply** on the same email thread. Invite the bot to that channel.
 
 Post body is one sentence, e.g.:
 
@@ -59,6 +59,6 @@ No database. Message state lives in Slack **message metadata**.
 - `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`); `SLACK_DOT_CHANNEL_ID` (`/dot`, else `SLACK_CHANNEL_ID`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
-- `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`)
+- `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`); optional **`SLACK_TRAILERSWITCH_EMAILS`** for `/trailerswitch` only
 
 Port **5002**. See `deploy/nginx.api.twobrothersfreight.com.conf`.
