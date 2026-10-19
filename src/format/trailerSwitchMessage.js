@@ -65,11 +65,20 @@ function formatEmailHtml(submission, meta, options = {}) {
   const footer = options.edited
     ? `Updated submission via /trailerswitch · originally ${escapeHtml(meta.submittedAtIso)}`
     : `Submitted via /trailerswitch · ${escapeHtml(meta.submittedAtIso)}`;
+  const attachmentNotes = Array.isArray(options.attachmentNotes)
+    ? options.attachmentNotes.filter(Boolean)
+    : [];
+  const notesHtml = attachmentNotes.length
+    ? `<p style="color:#444;font-size:13px;margin-top:16px;"><strong>Attachments:</strong><br>${attachmentNotes
+        .map((note) => escapeHtml(note))
+        .join('<br>')}</p>`
+    : '';
 
   return `<!DOCTYPE html>
 <html>
 <body style="font-family:Arial,sans-serif;color:#222;white-space:pre-line;">
   <pre style="font-family:Arial,sans-serif;font-size:14px;">${escapeHtml(plain)}</pre>
+  ${notesHtml}
   <p style="color:#666;font-size:12px;margin-top:24px;">${footer}</p>
 </body>
 </html>`;

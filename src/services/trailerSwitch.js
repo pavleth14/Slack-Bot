@@ -5,7 +5,7 @@ const {
   formatPostBodyText,
   formatPostFallbackText,
 } = require('../format/trailerSwitchMessage');
-const { deliverSlackAndEmail, DeliveryError, slackClient } = require('./delivery');
+const { DeliveryError, slackClient } = require('./delivery');
 const { sendTrailerSwitchEmail, sendTrailerSwitchReplyEmail } = require('./mail');
 const { isUserAllowed } = require('./access');
 const {
@@ -13,6 +13,7 @@ const {
   downloadSlackFileBuffers,
   uploadFilesToThread,
 } = require('./slackFiles');
+const { prepareEmailAttachments } = require('./videoCompress');
 const { formatViewsOpenError } = require('./truckSwitch');
 const { ACTION_EDIT_TRAILER_SWITCH } = require('../constants/formEditActions');
 const { buildEditPostActionsBlock } = require('../blocks/editPostActions');
@@ -57,7 +58,7 @@ async function notifyTrailerSwitchSubmissionFailed(userId, err) {
   if (err instanceof DeliveryError) {
     if (err.mailFailed) {
       text =
-        'Email could not be sent. The channel post was rolled back. Fix email settings or try again.';
+        'The channel post was saved, but email could not be sent. Check email settings or try again.';
     } else if (err.slackFailed) {
       text = 'Could not post to the Slack channel. Check bot channel access and try again.';
     } else if (err.fileFailed) {
@@ -74,6 +75,17 @@ async function notifyTrailerSwitchSubmissionFailed(userId, err) {
     await client.chat.postMessage({ channel: userId, text });
   } catch (dmErr) {
     console.error('[trailerSwitch] failed to DM submitter:', dmErr.message);
+  }
+}
+
+async function notifyTrailerSwitchEmailFailed(userId, err) {
+  const client = slackClient();
+  const detail = err?.message ? ` ${err.message}` : '';
+  const text = `Your trailer switch was posted to the channel, but email failed.${detail} The original files are in the Slack thread.`;
+  try {
+    await client.chat.postMessage({ channel: userId, text });
+  } catch (dmErr) {
+    console.error('[trailerSwitch] failed to DM email failure:', dmErr.message);
   }
 }
 
@@ -121,6 +133,7 @@ async function updateTrailerSwitchPost(
 
 async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
   const { trailerSwitchChannelId } = loadConfig().slack;
+  const { mail } = loadConfig();
   console.log(`[trailerSwitch] posting to channel ${trailerSwitchChannelId}`);
   const client = slackClient();
   const { attachmentFiles = [], ...formFields } = rawSubmission;
@@ -151,34 +164,52 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
   );
 
   let postRef;
+  try {
+    postRef = await client.chat.postMessage({
+      channel: trailerSwitchChannelId,
+      text: fallback,
+      blocks,
+      metadata,
+    });
+  } catch (err) {
+    throw new DeliveryError(
+      err.message || 'Could not post to Slack channel.',
+      { slackFailed: true }
+    );
+  }
 
-  const mailResult = await deliverSlackAndEmail(
-    async () => {
-      const post = await client.chat.postMessage({
-        channel: trailerSwitchChannelId,
-        text: fallback,
-        blocks,
-        metadata,
-      });
-      postRef = post;
-      return {
-        rollback: async () => {
-          await client.chat.delete({
-            channel: post.channel,
-            ts: post.ts,
-          });
-        },
-      };
-    },
-    submission,
-    meta,
-    {
-      sendEmail: sendTrailerSwitchEmail,
-      attachments: fileAttachments,
+  // Original files always go to Slack first (never blocked by email/compress).
+  if (fileAttachments.length) {
+    try {
+      await uploadFilesToThread(
+        client,
+        postRef.channel,
+        postRef.ts,
+        fileAttachments,
+        'Attachments from trailer switch form'
+      );
+    } catch (err) {
+      console.error('[trailerSwitch] thread file upload failed:', err.message);
     }
-  );
+  }
 
-  if (mailResult.messageId) {
+  if (!mail.enabled) {
+    return;
+  }
+
+  // Compress large videos for Gmail in the background of this job; do not delete the Slack post on failure.
+  try {
+    const { attachments, notes } = await prepareEmailAttachments(
+      fileAttachments,
+      mail.gmailAttachmentMaxBytes
+    );
+    const mailResult = await sendTrailerSwitchEmail(submission, meta, {
+      attachments,
+      attachmentNotes: notes,
+    });
+    if (!mailResult.sent) {
+      throw new Error(mailResult.reason || 'email_not_sent');
+    }
     submissionMeta.emailMessageId = mailResult.messageId;
     submissionMeta.emailSubject = mailResult.subject;
     await client.chat.update({
@@ -192,20 +223,9 @@ async function processTrailerSwitchSubmission(rawSubmission, submitterUserId) {
         trailerSubmissionMetaRecord(submissionMeta)
       ),
     });
-  }
-
-  if (fileAttachments.length) {
-    try {
-      await uploadFilesToThread(
-        client,
-        postRef.channel,
-        postRef.ts,
-        fileAttachments,
-        'Attachments from trailer switch form'
-      );
-    } catch (err) {
-      console.error('[trailerSwitch] thread file upload failed:', err.message);
-    }
+  } catch (err) {
+    console.error('[trailerSwitch] email failed (Slack post kept):', err.message);
+    await notifyTrailerSwitchEmailFailed(submitterUserId, err);
   }
 }
 

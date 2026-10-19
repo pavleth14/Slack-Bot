@@ -220,7 +220,9 @@ async function sendTrailerSwitchEmail(submission, meta, options = {}) {
     from: mail.from,
     to: to.join(','),
     subject,
-    html: formatTrailerSwitchEmailHtml(submission, meta),
+    html: formatTrailerSwitchEmailHtml(submission, meta, {
+      attachmentNotes: options.attachmentNotes,
+    }),
     attachments: mailAttachments.length ? mailAttachments : undefined,
   });
 

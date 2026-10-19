@@ -110,6 +110,14 @@ function loadConfig() {
       departmentEmails: optionalList('DEPARTMENT_EMAILS'),
       /** /trailerswitch only; when set, overrides DEPARTMENT_EMAILS for that form. */
       trailerSwitchEmails: optionalList('SLACK_TRAILERSWITCH_EMAILS'),
+      /**
+       * Max attachment bytes for trailer-switch email (Gmail ~25MB; default 20MB for MIME overhead).
+       * Larger videos are compressed for email; Slack always gets the original.
+       */
+      gmailAttachmentMaxBytes: Math.max(
+        1_000_000,
+        Number(process.env.MAIL_GMAIL_ATTACHMENT_MAX_BYTES || 20 * 1024 * 1024)
+      ),
       smtp: {
         host: process.env.SMTP_HOST?.trim() || '',
         port: Number(process.env.SMTP_PORT || 587),

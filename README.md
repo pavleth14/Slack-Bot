@@ -32,6 +32,8 @@ Sections: driver/truck/trailer, date & time, location; inspection level (I–III
 
 Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only**. Email on submit when `MAIL_ENABLED=true` to **`SLACK_TRAILERSWITCH_EMAILS`** (if set), else `DEPARTMENT_EMAILS`; **Edit submission** sends a **reply** on the same email thread. Invite the bot to that channel.
 
+Slack always gets the **original** attachments in the thread. Large videos are **compressed with ffmpeg** for email (default cap ~20MB for Gmail). The Slack post is **not deleted** if email fails. Requires `ffmpeg` / `ffprobe` on the server (`FFMPEG_PATH` / `FFPROBE_PATH` optional).
+
 Post body is one sentence, e.g.:
 
 `Truck 223 Samih picked up loaded trailer #S532404 from Justice Yard IL Load# 25372`
@@ -44,7 +46,7 @@ Post body is one sentence, e.g.:
 4. All three checked → Work Completed :white_check_mark: + **one email** to `DEPARTMENT_EMAILS` when `MAIL_ENABLED=true` (not sent on initial submit).
 5. Long **thread replies** remain manual.
 
-**Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post, edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims` — Slack only (for now).
+**Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post (videos compressed for Gmail; Slack keeps original; no Slack rollback on mail failure), edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims` — Slack only (for now).
 
 No database. Message state lives in Slack **message metadata**.
 
