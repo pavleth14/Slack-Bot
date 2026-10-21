@@ -43,7 +43,7 @@ Post body is one sentence, e.g.:
 1. Submit form → post in `SLACK_TRUCKSWITCH_CHANNEL_ID` (Slack only on submit). Optional **attachments** go to a **thread** on the post.
 2. **Fuel Card** (`@safetyteam`), **Samsara** (`@maintenance`), **TMS** (`@safetyteam`) — each pending row has **Mark updated** (only that team). Updated rows show **Revert**.
 3. **Mark updated** or **Revert** → modal *Are you sure?* → **Yes** updates the post (`UPDATED` + *Checked by @user*). **No** closes the modal (post unchanged).
-4. All three checked → Work Completed :white_check_mark: + **one email** to `DEPARTMENT_EMAILS` when `MAIL_ENABLED=true` (not sent on initial submit).
+4. All three checked → Work Completed :white_check_mark: + **one email** to `SLACK_TRUCKSWITCH_EMAILS` (if set) else `DEPARTMENT_EMAILS` when `MAIL_ENABLED=true` (not sent on initial submit).
 5. Long **thread replies** remain manual.
 
 **Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post (videos compressed for Gmail; Slack keeps original; no Slack rollback on mail failure), edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims` — Slack only (for now).
@@ -61,6 +61,6 @@ No database. Message state lives in Slack **message metadata**.
 - `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`); `SLACK_DOT_CHANNEL_ID` (`/dot`, else `SLACK_CHANNEL_ID`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
-- `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`); optional **`SLACK_TRAILERSWITCH_EMAILS`** for `/trailerswitch` only
+- `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`); optional **`SLACK_TRUCKSWITCH_EMAILS`** for `/truckswitch` only; optional **`SLACK_TRAILERSWITCH_EMAILS`** for `/trailerswitch` only
 
 Port **5002**. See `deploy/nginx.api.twobrothersfreight.com.conf`.

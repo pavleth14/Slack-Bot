@@ -108,6 +108,8 @@ function loadConfig() {
       /** When false, forms post to Slack only (no email attempt, no rollback). Set true to require email again. */
       enabled: process.env.MAIL_ENABLED === 'true',
       departmentEmails: optionalList('DEPARTMENT_EMAILS'),
+      /** /truckswitch only; when set, overrides DEPARTMENT_EMAILS for that form. */
+      truckSwitchEmails: optionalList('SLACK_TRUCKSWITCH_EMAILS'),
       /** /trailerswitch only; when set, overrides DEPARTMENT_EMAILS for that form. */
       trailerSwitchEmails: optionalList('SLACK_TRAILERSWITCH_EMAILS'),
       /**

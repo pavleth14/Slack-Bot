@@ -17,6 +17,13 @@ const {
   formatEmailSubject: formatTrailerSwitchEmailSubject,
 } = require('../format/trailerSwitchMessage');
 
+function truckSwitchRecipients(mail) {
+  if (mail.truckSwitchEmails.length) {
+    return mail.truckSwitchEmails;
+  }
+  return mail.departmentEmails;
+}
+
 function trailerSwitchRecipients(mail) {
   if (mail.trailerSwitchEmails.length) {
     return mail.trailerSwitchEmails;
@@ -42,8 +49,11 @@ function createTransport() {
 
 async function sendTruckSwitchEmail(submission, meta, options = {}) {
   const { mail } = loadConfig();
-  if (!mail.departmentEmails.length) {
-    console.warn('[mail] DEPARTMENT_EMAILS is empty; skipping email.');
+  const to = truckSwitchRecipients(mail);
+  if (!to.length) {
+    console.warn(
+      '[mail] SLACK_TRUCKSWITCH_EMAILS and DEPARTMENT_EMAILS are empty; skipping truck switch email.'
+    );
     return { sent: false, reason: 'no_recipients' };
   }
 
@@ -62,7 +72,7 @@ async function sendTruckSwitchEmail(submission, meta, options = {}) {
 
   const info = await transport.sendMail({
     from: mail.from,
-    to: mail.departmentEmails.join(','),
+    to: to.join(','),
     subject,
     html: formatEmailHtml(submission, meta, options),
     attachments: mailAttachments.length ? mailAttachments : undefined,
@@ -81,7 +91,8 @@ async function sendTruckSwitchReplyEmail(
   { inReplyTo, references, subject, checks }
 ) {
   const { mail } = loadConfig();
-  if (!mail.departmentEmails.length) {
+  const to = truckSwitchRecipients(mail);
+  if (!to.length) {
     return { sent: false, reason: 'no_recipients' };
   }
 
@@ -92,7 +103,7 @@ async function sendTruckSwitchReplyEmail(
 
   const info = await transport.sendMail({
     from: mail.from,
-    to: mail.departmentEmails.join(','),
+    to: to.join(','),
     subject,
     html: formatEmailHtml(submission, meta, { phase: 2, checks }),
     inReplyTo,
