@@ -10,9 +10,11 @@ Modal → channel post (Slack). Teams mark **Fuel Card**, **Samsara**, and **TMS
 
 ## `/loads`
 
-Modal: date, confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** (Slack only; no email). Invite the bot to that channel. Post format:
+Modal: date, **appointment time** (fixed or range), confirmation number, truck, driver name, optional notes → **`SLACK_LOADS_CHANNEL_ID` only** (Slack only; no email). Invite the bot to that channel. Post format (one line):
 
-`MM-DD-YYYY RC {confirmation} {driver} {truck}`
+`MM-DD-YYYY {HH:MM|HH:MM-HH:MM} RC {confirmation} {driver} {truck}`
+
+Examples: `10-27-2026 14:00 RC 2503125 Dragan 302` or `10-27-2026 08:00-12:00 RC 2503125 Dragan 302`.
 
 Notes on the line(s) below under **Notes:**.
 
