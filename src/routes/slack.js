@@ -79,6 +79,17 @@ const {
   notifyDotSubmissionFailed,
   handleDotSelectionAction,
 } = require('../services/dot');
+const {
+  CALLBACK_ID: RETURN_EQUIPMENT_CALLBACK_ID,
+  BLOCK_IDS: RETURN_EQUIPMENT_BLOCK_IDS,
+  parseSubmissionValues: parseReturnEquipmentSubmissionValues,
+} = require('../blocks/returnEquipmentModal');
+const {
+  openReturnEquipmentModal,
+  processReturnEquipmentSubmission,
+  processReturnEquipmentEditSubmission,
+  notifyReturnEquipmentSubmissionFailed,
+} = require('../services/returnEquipment');
 
 const router = express.Router();
 
@@ -157,6 +168,13 @@ router.post('/commands/dot', async (req, res) => {
   return handleSlashOpenModal(req, res, {
     openModal: openDotModal,
     commandLabel: 'dot',
+  });
+});
+
+router.post('/commands/returnequipment', async (req, res) => {
+  return handleSlashOpenModal(req, res, {
+    openModal: openReturnEquipmentModal,
+    commandLabel: 'returnequipment',
   });
 });
 
@@ -456,6 +474,56 @@ router.post('/interactions', async (req, res) => {
     processDotSubmission(data, userId).catch((err) => {
       console.error('[interactions] dot failed:', err.message);
       notifyDotSubmissionFailed(userId, err).catch(() => {});
+    });
+    return;
+  }
+
+  if (
+    payload.type === 'view_submission' &&
+    payload.view?.callback_id === RETURN_EQUIPMENT_CALLBACK_ID
+  ) {
+    const userId = payload.user?.id;
+    const editCtx = parseEditPrivateMetadata(payload.view?.private_metadata);
+
+    if (!isUserAllowed(userId)) {
+      return res.json({
+        response_action: 'errors',
+        errors: {
+          [RETURN_EQUIPMENT_BLOCK_IDS.damages]:
+            'You are not allowed to submit this form.',
+        },
+      });
+    }
+
+    const { data, errors } = parseReturnEquipmentSubmissionValues(
+      payload.view.state.values
+    );
+    if (Object.keys(errors).length > 0) {
+      return res.json({ response_action: 'errors', errors });
+    }
+
+    if (editCtx) {
+      const editErr = assertEditSubmitter(editCtx, userId);
+      if (editErr) {
+        return res.json({
+          response_action: 'errors',
+          errors: { [RETURN_EQUIPMENT_BLOCK_IDS.damages]: editErr },
+        });
+      }
+      res.json({ response_action: 'clear' });
+      processReturnEquipmentEditSubmission(data, userId, editCtx).catch(
+        (err) => {
+          console.error('[interactions] returnequipment edit failed:', err.message);
+          notifyReturnEquipmentSubmissionFailed(userId, err).catch(() => {});
+        }
+      );
+      return;
+    }
+
+    res.json({ response_action: 'clear' });
+    processReturnEquipmentSubmission(data, userId).catch((err) => {
+      console.error('[interactions] returnequipment failed:', err.message);
+      notifyReturnEquipmentSubmissionFailed(userId, err).catch(() => {});
     });
     return;
   }

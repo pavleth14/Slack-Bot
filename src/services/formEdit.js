@@ -20,6 +20,7 @@ const { buildRoadAccidentModal } = require('../blocks/roadAccidentModal');
 const { buildLoadsModal } = require('../blocks/loadsModal');
 const { buildTrailerSwitchModal } = require('../blocks/trailerSwitchModal');
 const { buildDotModal } = require('../blocks/dotModal');
+const { buildReturnEquipmentModal } = require('../blocks/returnEquipmentModal');
 const { loadDotRecordFromMessage } = require('./dot');
 
 async function postEditEphemeral(client, payload, text) {
@@ -66,6 +67,12 @@ function getSubmitterFromMessage(message, actionId) {
     return null;
   }
   if (form === 'trailer_switch' && simple.eventType !== 'trailer_switch_form_v1') {
+    return null;
+  }
+  if (
+    form === 'return_equipment' &&
+    simple.eventType !== 'return_equipment_form_v1'
+  ) {
     return null;
   }
 
@@ -166,6 +173,12 @@ async function handleFormEditButton(payload) {
   } else if (form === 'dot') {
     view = buildDotModal({
       includeAttachments: false,
+      isEdit: true,
+      initial: parsed.submission,
+      privateMetadata,
+    });
+  } else if (form === 'return_equipment') {
+    view = buildReturnEquipmentModal({
       isEdit: true,
       initial: parsed.submission,
       privateMetadata,

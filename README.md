@@ -30,6 +30,10 @@ The post shows 🟢 paid and closed, 🟡 ongoing, or 🔴 rejected. Checkbox ch
 
 Sections: driver/truck/trailer, date & time, location; inspection level (I–III/Other) and result; violation description and subject (driver/truck/trailer); inspection report upload (thread); citation yes/no; current status; additional notes. Checkbox groups appear on the channel post (shared with the channel). **Edit submission** (submitter only) updates text fields; post checkboxes can still be toggled on the message.
 
+## `/returnequipment`
+
+**Return equipment** modal → **`SLACK_RETURN_EQUIPMENT_CHANNEL_ID`** when set; otherwise **`SLACK_CHANNEL_ID`** (bot-test). Text fields: **Damages**, **Mattress**, **Truck Detailing** (at least one required). Slack only. **Edit submission** (submitter only). Slash URL: `https://<host>/slack/commands/returnequipment`.
+
 ## `/trailerswitch`
 
 Modal: **Pick up** / **Drop off**, truck, driver, trailer # (shown with `#` in the post), **Empty** / **Loaded** (select), load # when loaded, location, optional attachments → **`SLACK_TRAILERSWITCH_CHANNEL_ID` only**. Email on submit when `MAIL_ENABLED=true` to **`SLACK_TRAILERSWITCH_EMAILS`** (if set), else `DEPARTMENT_EMAILS`; **Edit submission** sends a **reply** on the same email thread. Invite the bot to that channel.
@@ -48,7 +52,7 @@ Post body is one sentence, e.g.:
 4. All three checked → Work Completed :white_check_mark: + **one email** to `SLACK_TRUCKSWITCH_EMAILS` (if set) else `DEPARTMENT_EMAILS` when `MAIL_ENABLED=true` (not sent on initial submit).
 5. Long **thread replies** remain manual.
 
-**Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post (videos compressed for Gmail; Slack keeps original; no Slack rollback on mail failure), edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims` — Slack only (for now).
+**Email summary (`MAIL_ENABLED=true`):** `/truckswitch` — when all systems updated; `/trailerswitch` — on post (videos compressed for Gmail; Slack keeps original; no Slack rollback on mail failure), edit as email reply; `/accident` — on post; `/loads`, `/dot`, `/claims`, `/returnequipment` — Slack only (for now).
 
 No database. Message state lives in Slack **message metadata**.
 
@@ -56,11 +60,11 @@ No database. Message state lives in Slack **message metadata**.
 
 - **Scopes:** `commands`, `chat:write`, `usergroups:read` (team check for Fuel/TMS/Samsara), `channels:history` (public channels), **`groups:history`** (private channels — form posts and truck-switch confirm), optional **`metadata.message:read`** (reading message metadata from history). For modal file upload also add `files:read` and `files:write`, **reinstall the app**, then keep `SLACK_ENABLE_MODAL_FILES=true` (default). If the form does not open, set `SLACK_ENABLE_MODAL_FILES=false` until scopes are added.
 - **Interactivity:** `https://<host>/slack/interactions`
-- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`, `https://<host>/slack/commands/trailerswitch`, `https://<host>/slack/commands/claims`, `https://<host>/slack/commands/dot`
+- **Slash commands:** `https://<host>/slack/commands/truckswitch`, `https://<host>/slack/commands/accident`, `https://<host>/slack/commands/loads`, `https://<host>/slack/commands/trailerswitch`, `https://<host>/slack/commands/claims`, `https://<host>/slack/commands/dot`, `https://<host>/slack/commands/returnequipment`
 
 ## Environment
 
-- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`); `SLACK_DOT_CHANNEL_ID` (`/dot`, else `SLACK_CHANNEL_ID`)
+- `SLACK_TRUCKSWITCH_CHANNEL_ID` (`/truckswitch`); `SLACK_ACCIDENTS_CHANNEL_ID` (`/accident`); `SLACK_LOADS_CHANNEL_ID` (`/loads`); `SLACK_TRAILERSWITCH_CHANNEL_ID` (`/trailerswitch`); `SLACK_CLAIMS_CHANNEL_ID` (`/claims`); `SLACK_DOT_CHANNEL_ID` (`/dot`, else `SLACK_CHANNEL_ID`); `SLACK_RETURN_EQUIPMENT_CHANNEL_ID` (`/returnequipment`, else `SLACK_CHANNEL_ID`)
 - `SLACK_SAFETY_TEAM_USERGROUP_ID`, `SLACK_MAINTENANCE_TEAM_USERGROUP_ID` (optional mentions)
 - **`MAIL_ENABLED`** — `false` (default): Slack only. `true`: Slack + email (`DEPARTMENT_EMAILS` + SMTP required).
 - `DEPARTMENT_EMAILS` + SMTP (when `MAIL_ENABLED=true`); optional **`SLACK_TRUCKSWITCH_EMAILS`** for `/truckswitch` only; optional **`SLACK_TRAILERSWITCH_EMAILS`** for `/trailerswitch` only

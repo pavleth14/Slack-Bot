@@ -1,6 +1,7 @@
 const LOADS_FORM_EVENT = 'loads_form_v1';
 const ACCIDENT_FORM_EVENT = 'accident_form_v1';
 const TRAILER_SWITCH_FORM_EVENT = 'trailer_switch_form_v1';
+const RETURN_EQUIPMENT_FORM_EVENT = 'return_equipment_form_v1';
 
 function createSimpleFormMetadata(eventType, submission, submissionMeta, extra = {}) {
   return {
@@ -31,6 +32,7 @@ module.exports = {
   LOADS_FORM_EVENT,
   ACCIDENT_FORM_EVENT,
   TRAILER_SWITCH_FORM_EVENT,
+  RETURN_EQUIPMENT_FORM_EVENT,
   createSimpleFormMetadata,
   parseSimpleFormMetadata,
 };
