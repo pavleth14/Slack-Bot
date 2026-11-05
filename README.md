@@ -32,7 +32,7 @@ Sections: driver/truck/trailer, date & time, location; inspection level (I–III
 
 ## `/returnequipment`
 
-**Return equipment** modal → **`SLACK_RETURN_EQUIPMENT_CHANNEL_ID`** when set; otherwise **`SLACK_CHANNEL_ID`** (bot-test). Text fields: **Damages**, **Mattress**, **Truck Detailing** (at least one required). Slack only. **Edit submission** (submitter only). Slash URL: `https://<host>/slack/commands/returnequipment`.
+**Return equipment** modal → **`SLACK_RETURN_EQUIPMENT_CHANNEL_ID`** when set; otherwise **`SLACK_CHANNEL_ID`** (bot-test). Fields: driver name, truck, termination date (required); termination reason; damages; mattress; truck detailing; last statement balance; escrow; travel expense; recovery fee. Slack only. **Edit submission** (submitter only). Slash URL: `https://<host>/slack/commands/returnequipment`.
 
 ## `/trailerswitch`
 

@@ -489,7 +489,7 @@ router.post('/interactions', async (req, res) => {
       return res.json({
         response_action: 'errors',
         errors: {
-          [RETURN_EQUIPMENT_BLOCK_IDS.damages]:
+          [RETURN_EQUIPMENT_BLOCK_IDS.driverName]:
             'You are not allowed to submit this form.',
         },
       });
@@ -507,7 +507,7 @@ router.post('/interactions', async (req, res) => {
       if (editErr) {
         return res.json({
           response_action: 'errors',
-          errors: { [RETURN_EQUIPMENT_BLOCK_IDS.damages]: editErr },
+          errors: { [RETURN_EQUIPMENT_BLOCK_IDS.driverName]: editErr },
         });
       }
       res.json({ response_action: 'clear' });
