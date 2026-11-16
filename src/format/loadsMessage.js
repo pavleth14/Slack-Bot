@@ -2,15 +2,7 @@ const { formatSubmittedByPrefix } = require('./submittedBy');
 
 function formatLoadHeadline(submission) {
   const date = submission.loadDateDisplay || submission.loadDate;
-  const appointment =
-    submission.appointmentDisplay ||
-    (submission.appointmentType === 'range' &&
-    submission.appointmentTime &&
-    submission.appointmentTimeEnd
-      ? `${submission.appointmentTime}-${submission.appointmentTimeEnd}`
-      : submission.appointmentTime || '');
-  const apptPart = appointment ? ` ${appointment}` : '';
-  return `${date}${apptPart} RC ${submission.confirmationNumber} ${submission.driverName} ${submission.truck}`;
+  return `${date} RC ${submission.confirmationNumber} ${submission.driverName} ${submission.truck}`;
 }
 
 function formatPostBodyText(submission, meta) {
